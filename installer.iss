@@ -1,6 +1,6 @@
 ; Inno Setup Script for PAMZ PlotPro
 #define MyAppName "PAMZ PlotPro"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "PAMZ"
 #define MyAppExeName "land_investment_and_sales_management.exe"
 
@@ -13,7 +13,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=installers
-OutputBaseFilename=PAMZ_PlotPro_Setup_v1.0.0
+OutputBaseFilename=Land_Investment_Management_Setup_v2.0.0
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -26,7 +26,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
