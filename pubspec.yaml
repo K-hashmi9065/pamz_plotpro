@@ -1,0 +1,66 @@
+name: land_investment_and_sales_management
+description: "Land Investment, Development & Sales Management System for Windows Desktop."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State Management & Routing
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.0
+  flutter_screenutil: ^5.9.3
+  google_fonts: ^6.2.1
+  window_manager: ^0.4.3
+  intl: ^0.20.2
+  crypto: ^3.0.6
+  uuid: ^4.5.1
+  url_launcher: ^6.3.1
+  equatable: ^2.0.7
+
+  # Local Persistence
+  drift: ^2.24.0
+  drift_flutter: ^0.2.4
+  sqlite3_flutter_libs: ^0.5.28
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # PDF & Document Utilities
+  pdf: ^3.11.1
+  printing: ^5.13.4
+  syncfusion_flutter_pdfviewer: ^28.2.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+  patrol: ^3.11.0
+
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.24.0
+  build_runner: ^2.4.15
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  image_path: "assets/app_icon.png"
+  windows:
+    generate: true
+    icon_size: 256
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/pdf/
+    - assets/app_icon.png
+

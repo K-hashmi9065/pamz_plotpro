@@ -1,0 +1,1172 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/calculation_engine.dart';
+import '../../../core/utils/date_filter_utils.dart';
+import '../../../core/utils/land_unit_converter.dart';
+import '../../../shared/providers/navigation_providers.dart';
+import '../../../shared/widgets/page/custom_data_table.dart';
+import '../../../shared/widgets/page/status_badge.dart';
+import '../../buyers_sales/presentation/sales_providers.dart';
+import '../../buyers_sales/presentation/widgets/buyer_sale_pdf_dialog.dart';
+import '../../buyers_sales/presentation/widgets/sale_agreement_dialog.dart';
+
+import '../../dashboard/presentation/dashboard_providers.dart';
+import '../../expenses/presentation/expenses_providers.dart';
+import '../../installments_payments/presentation/installments_providers.dart';
+import '../../investors/presentation/investors_providers.dart';
+import '../../investors/presentation/widgets/project_investment_dialog.dart';
+import '../../landowners/presentation/landowners_providers.dart';
+import '../../plots/presentation/plots_providers.dart';
+import '../../plots/presentation/widgets/plot_subdivision_dialog.dart';
+import '../../profit_loss_settlement/domain/profit_loss_models.dart';
+import '../../profit_loss_settlement/presentation/profit_loss_providers.dart';
+import '../domain/project_model.dart';
+import 'projects_providers.dart';
+
+final projectDetailTabProvider = StateProvider.autoDispose.family<int, String>((ref, projectId) => 0);
+
+class ProjectDetailScreen extends ConsumerWidget {
+  final String projectId;
+
+  const ProjectDetailScreen({
+    super.key,
+    required this.projectId,
+  });
+
+  static Future<void> showAsDialog(BuildContext context, String projectId) {
+    return showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        backgroundColor: AppColors.surface,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: SizedBox(
+          width: 1180,
+          height: 820,
+          child: ProjectDetailScreen(projectId: projectId),
+        ),
+      ),
+    );
+  }
+
+  BadgeType _getBadgeType(ProjectStatus status) {
+    switch (status) {
+      case ProjectStatus.active:
+      case ProjectStatus.purchased:
+      case ProjectStatus.closed:
+        return BadgeType.success;
+      case ProjectStatus.draft:
+      case ProjectStatus.negotiation:
+      case ProjectStatus.purchasePending:
+      case ProjectStatus.funding:
+        return BadgeType.warning;
+      case ProjectStatus.cancelled:
+        return BadgeType.danger;
+      default:
+        return BadgeType.info;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedTabIndex = ref.watch(projectDetailTabProvider(projectId));
+    final projectAsync = ref.watch(projectByIdProvider(projectId));
+    final currentRole = ref.watch(currentRoleProvider);
+    final plotsAsync = ref.watch(projectPlotsStreamProvider(projectId));
+    final pnlListAsync = ref.watch(projectProfitLossStreamProvider);
+
+    return projectAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(
+        child: Text('Error loading project details: $err', style: const TextStyle(color: AppColors.dangerText)),
+      ),
+      data: (project) {
+        if (project == null) {
+          return const Center(child: Text('Project not found.'));
+        }
+
+        double soldAreaSqFt = 0.0;
+        int availPlots = 0;
+        int bookedPlots = 0;
+        int soldPlots = 0;
+        int totalPlots = 0;
+
+        plotsAsync.whenData((plots) {
+          totalPlots = plots.length;
+          for (final plot in plots) {
+            if (plot.status == PlotStatus.available) {
+              availPlots++;
+            } else if (plot.status == PlotStatus.booked || plot.status == PlotStatus.reserved) {
+              bookedPlots++;
+              soldAreaSqFt += plot.areaSqFt;
+            } else if (plot.status == PlotStatus.cancelled) {
+              // ignore
+            } else {
+              soldPlots++;
+              soldAreaSqFt += plot.areaSqFt;
+            }
+          }
+        });
+
+        final remainingAreaSqFt = (project.landAreaSqFt - soldAreaSqFt).clamp(0.0, double.infinity);
+        final totalKd = LandUnitConverter.sqFtToKattaDhur(project.landAreaSqFt);
+        final soldKd = LandUnitConverter.sqFtToKattaDhur(soldAreaSqFt);
+        final remKd = LandUnitConverter.sqFtToKattaDhur(remainingAreaSqFt);
+
+        ProjectProfitLossModel? projectPnl;
+        pnlListAsync.whenData((pnlList) {
+          projectPnl = pnlList.firstWhere(
+            (p) => p.projectId == project.id,
+            orElse: () => ProjectProfitLossModel(
+              projectId: project.id,
+              projectName: project.name,
+              totalAgreedSales: 0,
+              directSaleExpenses: 0,
+              actualProjectCost: project.actualCost,
+              cashCollected: 0,
+            ),
+          );
+        });
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Bar: Title, Back button, Status
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(project.code, style: AppTypography.cardTitle.copyWith(color: AppColors.accent)),
+                              const SizedBox(width: 8),
+                              Text(project.name, style: AppTypography.cardTitle),
+                              const SizedBox(width: 12),
+                              StatusBadge(
+                                label: project.status.name.toUpperCase(),
+                                type: _getBadgeType(project.status),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Text(project.location, style: AppTypography.secondary),
+                              const SizedBox(width: 16),
+                              const Icon(Icons.person_outline, size: 14, color: AppColors.accent),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Landowner: ${project.landownerName ?? "Not Assigned"}',
+                                style: AppTypography.secondary.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Comprehensive Project Financials & Land Summary Banner
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _MetricItem(
+                        label: 'Total Land Bought',
+                        value: '${CalculationEngine.indianNumberFormat.format(project.landAreaSqFt.round())} Sq.Ft.',
+                        subValue: '(${totalKd.katta}K ${totalKd.dhur}D)',
+                      ),
+                      _MetricItem(
+                        label: 'Land Sold Area',
+                        value: '${CalculationEngine.indianNumberFormat.format(soldAreaSqFt.round())} Sq.Ft.',
+                        subValue: '(${soldKd.katta}K ${soldKd.dhur}D)',
+                        valueColor: AppColors.successText,
+                      ),
+                      _MetricItem(
+                        label: 'Remaining Land',
+                        value: '${CalculationEngine.indianNumberFormat.format(remainingAreaSqFt.round())} Sq.Ft.',
+                        subValue: '(${remKd.katta}K ${remKd.dhur}D)',
+                        valueColor: AppColors.accent,
+                      ),
+                      _MetricItem(
+                        label: 'Plots Breakdown',
+                        value: '$availPlots Avail | $bookedPlots Booked | $soldPlots Sold',
+                        subValue: 'Total $totalPlots Plots',
+                      ),
+                      _MetricItem(
+                        label: 'Actual Cost',
+                        value: CalculationEngine.formatCurrency(project.actualCost),
+                        subValue: 'Purchase + Expenses',
+                      ),
+                      _MetricItem(
+                        label: 'Net Project Profit',
+                        value: CalculationEngine.formatCurrency(projectPnl?.grossProjectProfit ?? 0.0),
+                        subValue: (projectPnl?.grossProjectProfit ?? 0.0) >= 0 ? 'Profit (Inflow > Cost)' : 'Deficit',
+                        valueColor: (projectPnl?.grossProjectProfit ?? 0.0) >= 0 ? AppColors.successText : AppColors.dangerText,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Navigation Tabs
+                DefaultTabController(
+                  length: 7,
+                  initialIndex: selectedTabIndex,
+                  child: TabBar(
+                    onTap: (index) => ref.read(projectDetailTabProvider(projectId).notifier).state = index,
+                    isScrollable: true,
+                    labelColor: AppColors.accent,
+                    unselectedLabelColor: AppColors.textSecondary,
+                    indicatorColor: AppColors.accent,
+                    tabs: const [
+                      Tab(icon: Icon(Icons.info_outline, size: 18), text: 'Overview & Land'),
+                      Tab(icon: Icon(Icons.grid_view_outlined, size: 18), text: 'Plots Directory'),
+                      Tab(icon: Icon(Icons.sell_outlined, size: 18), text: 'Buyers & Sales'),
+                      Tab(icon: Icon(Icons.pie_chart_outline, size: 18), text: 'Investors'),
+                      Tab(icon: Icon(Icons.real_estate_agent_outlined, size: 18), text: 'Landowner'),
+                      Tab(icon: Icon(Icons.receipt_long_outlined, size: 18), text: 'Expenses'),
+                      Tab(icon: Icon(Icons.monetization_on_outlined, size: 18), text: 'Profit & Loss'),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                const SizedBox(height: 14),
+
+                // Tab View Contents with Smooth Animation
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 240),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.015, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey(selectedTabIndex),
+                      child: _buildDetailTabContent(selectedTabIndex, project, currentRole.isAdmin),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailTabContent(int tabIndex, ProjectModel project, bool isAdmin) {
+    switch (tabIndex) {
+      case 0:
+        return _OverviewTab(project: project);
+      case 1:
+        return _PlotsTab(projectId: project.id);
+      case 2:
+        return _BuyersSalesTab(projectId: project.id);
+      case 3:
+        return _InvestorsTab(project: project, isAdmin: isAdmin);
+      case 4:
+        return _LandownerTab(project: project);
+      case 5:
+        return _ExpensesTab(projectId: project.id);
+      case 6:
+      default:
+        return _ProfitLossTab(projectId: project.id);
+    }
+  }
+}
+
+class _MetricItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? subValue;
+  final Color? valueColor;
+
+  const _MetricItem({
+    required this.label,
+    required this.value,
+    this.subValue,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label, style: AppTypography.secondary.copyWith(fontSize: 11)),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: AppTypography.body.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: valueColor ?? AppColors.textPrimary,
+          ),
+        ),
+        if (subValue != null)
+          Text(subValue!, style: AppTypography.secondary.copyWith(fontSize: 10, color: AppColors.textMuted)),
+      ],
+    );
+  }
+}
+
+class _OverviewTab extends ConsumerWidget {
+  final ProjectModel project;
+
+  const _OverviewTab({required this.project});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plotsAsync = ref.watch(projectPlotsStreamProvider(project.id));
+    final pnlListAsync = ref.watch(projectProfitLossStreamProvider);
+
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Project Master Information & Land Breakdown', style: AppTypography.sectionTitle),
+            const Divider(),
+            const SizedBox(height: 12),
+            _infoRow('Project Code:', project.code),
+            _infoRow('Project Name:', project.name),
+            _infoRow('Location:', project.location),
+            _infoRow('Landowner:', project.landownerName ?? 'Not Assigned'),
+            _infoRow('Total Land Purchased:', project.formattedArea),
+
+            plotsAsync.when(
+              data: (plots) {
+                double soldAreaSqFt = 0.0;
+                int availCount = 0;
+                int bookedCount = 0;
+                int soldCount = 0;
+
+                for (final plot in plots) {
+                  if (plot.status == PlotStatus.available) {
+                    availCount++;
+                  } else if (plot.status == PlotStatus.booked || plot.status == PlotStatus.reserved) {
+                    bookedCount++;
+                    soldAreaSqFt += plot.areaSqFt;
+                  } else if (plot.status == PlotStatus.cancelled) {
+                    // ignore
+                  } else {
+                    soldCount++;
+                    soldAreaSqFt += plot.areaSqFt;
+                  }
+                }
+
+                final remainingAreaSqFt = (project.landAreaSqFt - soldAreaSqFt).clamp(0.0, double.infinity);
+                final soldKd = LandUnitConverter.sqFtToKattaDhur(soldAreaSqFt);
+                final remKd = LandUnitConverter.sqFtToKattaDhur(remainingAreaSqFt);
+
+                return Column(
+                  children: [
+                    _infoRow(
+                      'Land Sold Area:',
+                      '${CalculationEngine.indianNumberFormat.format(soldAreaSqFt.round())} Sq. Ft. (${soldKd.katta} Kattha ${soldKd.dhur} Dhur)',
+                      valueColor: AppColors.successText,
+                    ),
+                    _infoRow(
+                      'Remaining Available Land:',
+                      '${CalculationEngine.indianNumberFormat.format(remainingAreaSqFt.round())} Sq. Ft. (${remKd.katta} Kattha ${remKd.dhur} Dhur)',
+                      valueColor: AppColors.accent,
+                    ),
+                    _infoRow(
+                      'Plot Inventory Summary:',
+                      '$availCount Available | $bookedCount Booked | $soldCount Sold (${plots.length} Total Plots)',
+                    ),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (e, s) => const SizedBox.shrink(),
+            ),
+
+            pnlListAsync.when(
+              data: (pnlList) {
+                final pnl = pnlList.firstWhere((p) => p.projectId == project.id, orElse: () => ProjectProfitLossModel(projectId: project.id, projectName: project.name, totalAgreedSales: 0, directSaleExpenses: 0, actualProjectCost: project.actualCost, cashCollected: 0));
+                return Column(
+                  children: [
+                    _infoRow('Agreed Sales Revenue:', CalculationEngine.formatCurrency(pnl.totalAgreedSales)),
+                    _infoRow('Cash Collected:', CalculationEngine.formatCurrency(pnl.cashCollected), valueColor: AppColors.successText),
+                    _infoRow('Project Net Profit:', CalculationEngine.formatCurrency(pnl.grossProjectProfit), valueColor: pnl.grossProjectProfit >= 0 ? AppColors.successText : AppColors.dangerText),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (e, s) => const SizedBox.shrink(),
+            ),
+
+            _infoRow('Measurement Unit:', project.measurementUnit),
+            _infoRow('Land Purchase Price:', CalculationEngine.formatCurrency(project.purchasePrice)),
+            _infoRow('Actual Cost (Inc. Capitalized):', CalculationEngine.formatCurrency(project.actualCost)),
+            _infoRow('Description:', project.description ?? 'No description provided.'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(width: 240, child: Text(label, style: AppTypography.secondary)),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTypography.body.copyWith(
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlotsTab extends ConsumerWidget {
+  final String projectId;
+
+  const _PlotsTab({required this.projectId});
+
+  String _formatSqFt(double sqFt, String unit) {
+    if (sqFt <= 0) return '0 $unit';
+    if (unit.toLowerCase().contains('katta') || unit.toLowerCase().contains('kattha')) {
+      final totalKatta = sqFt / LandUnitConverter.sqFtPerKatta;
+      final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
+      final kattaStr = totalKatta == totalKatta.roundToDouble()
+          ? totalKatta.toInt().toString()
+          : double.parse(totalKatta.toStringAsFixed(2)).toString().replaceAll(RegExp(r'\.0+$'), '');
+      if (kd.dhur > 0 && totalKatta != totalKatta.roundToDouble()) {
+        return '$kattaStr Kattha (${kd.katta}K ${kd.dhur}D)';
+      }
+      return '$kattaStr Kattha';
+    }
+    return LandUnitConverter.formatLandMeasurement(areaSqFt: sqFt, measurementUnit: unit);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plotsAsync = ref.watch(projectPlotsStreamProvider(projectId));
+    final projectAsync = ref.watch(projectByIdProvider(projectId));
+    final project = projectAsync.value;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Project Plots Directory & Inventory Status', style: AppTypography.sectionTitle),
+            ElevatedButton.icon(
+              onPressed: () => PlotSubdivisionDialog.show(context, preselectedProjectId: projectId),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add / Subdivide Plot'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        if (project != null) ...[
+          plotsAsync.when(
+            data: (plots) {
+              final double totalLandSqFt = project.landAreaSqFt;
+              final double plottedSqFt = plots.fold(0.0, (sum, p) => sum + p.areaSqFt);
+              final double remainingSqFt = (totalLandSqFt - plottedSqFt).clamp(0.0, double.infinity);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Column(
+                      children: [
+                        Text('Total Parent Land', style: AppTypography.secondary.copyWith(fontSize: 11)),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatSqFt(totalLandSqFt, project.measurementUnit),
+                          style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Text('Subdivided Plotted Area', style: AppTypography.secondary.copyWith(fontSize: 11)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_formatSqFt(plottedSqFt, project.measurementUnit)} (${plots.length} plots)',
+                          style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        Text('Remaining Unallocated Land', style: AppTypography.secondary.copyWith(fontSize: 11)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_formatSqFt(remainingSqFt, project.measurementUnit)} remaining',
+                          style: AppTypography.body.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: remainingSqFt > 0 ? AppColors.successText : AppColors.warningText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (e, s) => const SizedBox.shrink(),
+          ),
+        ],
+
+        Expanded(
+          child: plotsAsync.when(
+            loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
+            error: (err, stack) => Text('Error loading project plots: $err'),
+            data: (plots) {
+              return CustomDataTable(
+                columns: const [
+                  DataTableColumn(label: 'Plot No.', width: 110),
+                  DataTableColumn(label: 'Plot Area', width: 160),
+                  DataTableColumn(label: 'Allocated Cost', width: 160),
+                  DataTableColumn(label: 'Expected Price', width: 160),
+                  DataTableColumn(label: 'Status', width: 150),
+                ],
+                rows: plots.map((p) {
+                  return [
+                    Text(
+                      p.plotNumber,
+                      style: AppTypography.tableCell.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                    Text(p.formattedArea, style: AppTypography.tableCell),
+                    Text(CalculationEngine.formatCurrency(p.allocatedCost), style: AppTypography.amountMedium),
+                    Text(CalculationEngine.formatCurrency(p.expectedPrice), style: AppTypography.amountMedium),
+                    StatusBadge(
+                      label: p.status.name.toUpperCase(),
+                      type: p.isAvailable
+                          ? BadgeType.success
+                          : (p.isSold ? BadgeType.info : BadgeType.warning),
+                    ),
+                  ];
+                }).toList(),
+                emptyMessage: 'No plots mapped in this project yet. Click "Add / Subdivide Plot" to subdivide land.',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BuyersSalesTab extends ConsumerWidget {
+  final String projectId;
+
+  const _BuyersSalesTab({required this.projectId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final salesAsync = ref.watch(salesListStreamProvider);
+    final installmentsAsync = ref.watch(installmentsListStreamProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Project Buyers & Sales Agreements', style: AppTypography.sectionTitle),
+            ElevatedButton.icon(
+              onPressed: () => SaleAgreementDialog.show(context, preselectedProjectId: projectId),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Record New Sale'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: salesAsync.when(
+            loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
+            error: (err, stack) => Text('Error loading project sales: $err'),
+            data: (allSales) {
+              final projectSales = allSales.where((s) => s.projectId == projectId).toList();
+              final allInstallments = installmentsAsync.value ?? [];
+              return CustomDataTable(
+                columns: const [
+                  DataTableColumn(label: 'Buyer Name'),
+                  DataTableColumn(label: 'Sale Type', width: 130),
+                  DataTableColumn(label: 'Agreed Price', width: 150),
+                  DataTableColumn(label: 'Cash Paid', width: 150),
+                  DataTableColumn(label: 'Remaining Dues', width: 160),
+                  DataTableColumn(label: 'Sale Date', width: 130),
+                  DataTableColumn(label: 'Compliance', width: 160),
+                  DataTableColumn(label: 'Agreement PDF', width: 120, alignment: Alignment.center),
+                ],
+                rows: projectSales.map((sale) {
+                  final saleInsts = allInstallments.where((i) => i.saleId == sale.id).toList();
+                  final totalPaid = saleInsts.fold(0.0, (sum, i) => sum + i.paidAmount);
+                  final remainingDues = (sale.agreedPrice - totalPaid).clamp(0.0, double.infinity);
+                  final formattedDate = DateFormat('dd MMM yyyy').format(sale.saleDate);
+
+                  return [
+                    Text(
+                      sale.buyerName,
+                      style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      sale.saleType.name.toUpperCase(),
+                      style: AppTypography.tableCell.copyWith(color: AppColors.accent, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      CalculationEngine.formatCurrency(sale.agreedPrice),
+                      style: AppTypography.amountMedium.copyWith(fontSize: 14),
+                    ),
+                    Text(
+                      CalculationEngine.formatCurrency(totalPaid),
+                      style: AppTypography.amountMedium.copyWith(fontSize: 14, color: AppColors.successText),
+                    ),
+                    Text(
+                      CalculationEngine.formatCurrency(remainingDues),
+                      style: AppTypography.amountMedium.copyWith(
+                        fontSize: 14,
+                        color: remainingDues > 0 ? AppColors.warningText : AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(formattedDate, style: AppTypography.secondary),
+                    StatusBadge(
+                      label: sale.isBelowCircleRate ? 'DLC FLAG (Sec 43CA)' : 'COMPLIANT (Pass)',
+                      type: sale.isBelowCircleRate ? BadgeType.danger : BadgeType.success,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.picture_as_pdf, color: AppColors.accent, size: 18),
+                      tooltip: 'Export / Share Buyer Sale Agreement PDF',
+                      onPressed: () {
+                        final projectAsync = ref.read(projectByIdProvider(projectId));
+                        final project = projectAsync.value;
+
+                        BuyerSalePdfDialog.show(
+                          context,
+                          sale: sale,
+                          projectName: project?.name ?? 'Project',
+                          projectCode: project?.code ?? 'PRJ',
+                          projectLocation: project?.location ?? 'Location',
+                        );
+                      },
+                    ),
+                  ];
+                }).toList(),
+                emptyMessage: 'No buyer sales recorded for this project yet.',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InvestorsTab extends ConsumerWidget {
+  final ProjectModel project;
+  final bool isAdmin;
+
+  const _InvestorsTab({required this.project, required this.isAdmin});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!isAdmin) {
+      return const Center(child: Text('Investor details restricted to Admin only.'));
+    }
+
+    final investorsAsync = ref.watch(projectInvestorsStreamProvider(project.id));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Project Investor Participations & Equity Capital', style: AppTypography.sectionTitle),
+            ElevatedButton.icon(
+              onPressed: () => ProjectInvestmentDialog.show(context, preselectedProjectId: project.id),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Capital Investment'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: investorsAsync.when(
+            loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
+            error: (err, stack) => Text('Error loading project investors: $err'),
+            data: (investors) {
+              return CustomDataTable(
+                columns: const [
+                  DataTableColumn(label: 'Investor Name'),
+                  DataTableColumn(label: 'Contributed Capital', width: 190),
+                  DataTableColumn(label: 'Ownership %', width: 140),
+                  DataTableColumn(label: 'Ownership Method', width: 170),
+                ],
+                rows: investors.map((inv) {
+                  return [
+                    Text(inv.investorName, style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.w600)),
+                    Text(CalculationEngine.formatCurrency(inv.investedAmount), style: AppTypography.amountMedium),
+                    Text(
+                      '${inv.ownershipPercent.toStringAsFixed(2)}%',
+                      style: AppTypography.tableCell.copyWith(color: AppColors.successText, fontWeight: FontWeight.w600),
+                    ),
+                    Text(inv.ownershipMethod.name.toUpperCase(), style: AppTypography.secondary),
+                  ];
+                }).toList(),
+                emptyMessage: 'No investors added to this project yet.',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LandownerTab extends ConsumerWidget {
+  final ProjectModel project;
+
+  const _LandownerTab({required this.project});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final agreementsAsync = ref.watch(projectAgreementsStreamProvider(project.id));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.person_outline, color: AppColors.accent, size: 28),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Associated Landowner', style: AppTypography.secondary),
+                  Text(project.landownerName ?? 'No Landowner Linked', style: AppTypography.cardTitle),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text('Land Purchase Agreements & Financial Terms', style: AppTypography.sectionTitle),
+        const SizedBox(height: 8),
+        Expanded(
+          child: agreementsAsync.when(
+            loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
+            error: (err, stack) => Text('Error loading agreements: $err'),
+            data: (agreements) {
+              return CustomDataTable(
+                columns: const [
+                  DataTableColumn(label: 'Agreement Date', width: 140),
+                  DataTableColumn(label: 'Total Purchase Price', width: 180),
+                  DataTableColumn(label: 'Status', width: 130),
+                ],
+                rows: agreements.map((ag) {
+                  return [
+                    Text(ag.agreementDate.toString().split(' ')[0], style: AppTypography.tableCell),
+                    Text(CalculationEngine.formatCurrency(ag.totalPrice), style: AppTypography.amountMedium),
+                    StatusBadge(label: ag.status, type: BadgeType.info),
+                  ];
+                }).toList(),
+                emptyMessage: 'No purchase agreement recorded for this project yet.',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+final expensesTabSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+final expensesTabCategoryFilterProvider = StateProvider.autoDispose<ExpenseCategory?>((ref) => null);
+final expensesTabDateRangeFilterProvider = StateProvider.autoDispose<DashboardDateRange>((ref) => DashboardDateRange.allTime);
+final expensesTabCapitalizedFilterProvider = StateProvider.autoDispose<bool?>((ref) => null);
+
+class _ExpensesTab extends ConsumerWidget {
+  final String projectId;
+
+  const _ExpensesTab({required this.projectId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final searchQuery = ref.watch(expensesTabSearchQueryProvider);
+    final categoryFilter = ref.watch(expensesTabCategoryFilterProvider);
+    final dateRangeFilter = ref.watch(expensesTabDateRangeFilterProvider);
+    final isCapitalizedFilter = ref.watch(expensesTabCapitalizedFilterProvider);
+
+    final expensesAsync = ref.watch(projectExpensesStreamProvider(projectId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Project Expense Ledger & Cost Records', style: AppTypography.sectionTitle),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Filter Bar
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 220,
+                height: 38,
+                child: TextField(
+                  onChanged: (val) => ref.read(expensesTabSearchQueryProvider.notifier).state = val,
+                  decoration: const InputDecoration(
+                    hintText: 'Search vendor, notes...',
+                    prefixIcon: Icon(Icons.search, size: 18),
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  style: AppTypography.input.copyWith(fontSize: 13),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Category Dropdown Filter
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<ExpenseCategory?>(
+                    value: categoryFilter,
+                    hint: Text('All Categories', style: AppTypography.secondary),
+                    items: [
+                      const DropdownMenuItem<ExpenseCategory?>(
+                        value: null,
+                        child: Text('All Categories'),
+                      ),
+                      ...ExpenseCategory.values.map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c.name.toUpperCase()),
+                          )),
+                    ],
+                    onChanged: (val) => ref.read(expensesTabCategoryFilterProvider.notifier).state = val,
+                    style: AppTypography.body.copyWith(fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Date Range Filter Dropdown
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<DashboardDateRange>(
+                    value: dateRangeFilter,
+                    items: DashboardDateRange.values.map((range) {
+                      return DropdownMenuItem<DashboardDateRange>(
+                        value: range,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.accent),
+                            const SizedBox(width: 8),
+                            Text(range.label, style: AppTypography.input.copyWith(fontSize: 13)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) ref.read(expensesTabDateRangeFilterProvider.notifier).state = val;
+                    },
+                    style: AppTypography.body.copyWith(fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Capitalized Status Dropdown
+              Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<bool?>(
+                    value: isCapitalizedFilter,
+                    hint: Text('All Asset Types', style: AppTypography.secondary),
+                    items: const [
+                      DropdownMenuItem<bool?>(
+                        value: null,
+                        child: Text('All Asset Types'),
+                      ),
+                      DropdownMenuItem<bool?>(
+                        value: true,
+                        child: Text('CAPITALIZED ONLY'),
+                      ),
+                      DropdownMenuItem<bool?>(
+                        value: false,
+                        child: Text('PERIOD EXPENSE ONLY'),
+                      ),
+                    ],
+                    onChanged: (val) => ref.read(expensesTabCapitalizedFilterProvider.notifier).state = val,
+                    style: AppTypography.body.copyWith(fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        Expanded(
+          child: expensesAsync.when(
+            loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
+            error: (err, stack) => Text('Error loading project expenses: $err'),
+            data: (expenses) {
+              final filtered = expenses.where((e) {
+                if (categoryFilter != null && e.category != categoryFilter) {
+                  return false;
+                }
+                if (isCapitalizedFilter != null && e.isCapitalized != isCapitalizedFilter) {
+                  return false;
+                }
+                if (!isDateInFilterRange(e.expenseDate, dateRangeFilter)) {
+                  return false;
+                }
+                if (searchQuery.isNotEmpty) {
+                  final q = searchQuery.toLowerCase();
+                  final vendorMatch = e.vendor?.toLowerCase().contains(q) ?? false;
+                  final notesMatch = e.notes?.toLowerCase().contains(q) ?? false;
+                  if (!vendorMatch && !notesMatch) return false;
+                }
+                return true;
+              }).toList();
+
+              return CustomDataTable(
+                columns: const [
+                  DataTableColumn(label: 'Date', width: 120),
+                  DataTableColumn(label: 'Category', width: 160),
+                  DataTableColumn(label: 'Vendor / Notes', width: 240),
+                  DataTableColumn(label: 'Amount', width: 150),
+                  DataTableColumn(label: 'Capitalized', width: 120),
+                ],
+                rows: filtered.map((e) {
+                  return [
+                    Text(e.expenseDate.toString().split(' ')[0], style: AppTypography.tableCell),
+                    Text(e.category.name.toUpperCase(), style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      e.vendor ?? e.notes ?? '—',
+                      style: AppTypography.tableCell,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                    Text(CalculationEngine.formatCurrency(e.amount), style: AppTypography.amountMedium),
+                    StatusBadge(label: e.isCapitalized ? 'YES' : 'NO', type: e.isCapitalized ? BadgeType.success : BadgeType.info),
+                  ];
+                }).toList(),
+                emptyMessage: 'No expenses recorded for this project matching criteria.',
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfitLossTab extends ConsumerWidget {
+  final String projectId;
+
+  const _ProfitLossTab({required this.projectId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pnlListAsync = ref.watch(projectProfitLossStreamProvider);
+
+    return pnlListAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Text('Error loading Profit & Loss: $err'),
+      data: (pnlList) {
+        final pnl = pnlList.firstWhere(
+          (item) => item.projectId == projectId,
+          orElse: () => ProjectProfitLossModel(
+            projectId: projectId,
+            projectName: 'Project',
+            totalAgreedSales: 0,
+            directSaleExpenses: 0,
+            actualProjectCost: 0,
+            cashCollected: 0,
+          ),
+        );
+
+        return SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Project Financial Health & Profit / Loss Statement', style: AppTypography.sectionTitle),
+                const Divider(),
+                const SizedBox(height: 12),
+                _pnlRow('Total Agreed Sales Value:', CalculationEngine.formatCurrency(pnl.totalAgreedSales), isBold: true),
+                _pnlRow('Direct Sale Expenses:', CalculationEngine.formatCurrency(pnl.directSaleExpenses)),
+                _pnlRow('Net Sale Proceeds:', CalculationEngine.formatCurrency(pnl.netSaleProceeds)),
+                _pnlRow('Actual Project Cost (Land + Expenses):', CalculationEngine.formatCurrency(pnl.actualProjectCost), isBold: true),
+                _pnlRow(
+                  'Gross Project Profit:',
+                  CalculationEngine.formatCurrency(pnl.grossProjectProfit),
+                  isBold: true,
+                  isAccent: pnl.grossProjectProfit >= 0,
+                  isDanger: pnl.grossProjectProfit < 0,
+                ),
+                _pnlRow('Cash Inflows Collected:', CalculationEngine.formatCurrency(pnl.cashCollected)),
+                _pnlRow('Realized Profit (From Cash Receipts):', CalculationEngine.formatCurrency(pnl.realizedProfit)),
+                _pnlRow(
+                  'Distributable Profit (After Reserve):',
+                  CalculationEngine.formatCurrency(pnl.distributableProfit),
+                  isBold: true,
+                  isAccent: pnl.distributableProfit >= 0,
+                  isDanger: pnl.distributableProfit < 0,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _pnlRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    bool isAccent = false,
+    bool isDanger = false,
+  }) {
+    final Color valueColor = isDanger
+        ? AppColors.dangerText
+        : (isAccent ? AppColors.successText : AppColors.textPrimary);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: isBold
+                ? AppTypography.body.copyWith(fontWeight: FontWeight.w700, fontSize: 14)
+                : AppTypography.secondary,
+          ),
+          Text(
+            value,
+            style: isBold
+                ? AppTypography.body.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: valueColor,
+                  )
+                : AppTypography.body.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: valueColor,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
