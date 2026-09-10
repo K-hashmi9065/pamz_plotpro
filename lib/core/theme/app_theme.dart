@@ -51,9 +51,18 @@ abstract class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        hintStyle: AppTypography.secondary,
-        labelStyle: AppTypography.body.copyWith(color: AppColors.textSecondary),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        hintStyle: AppTypography.secondary.copyWith(
+          color: AppColors.textSecondary.withValues(alpha: 0.6),
+        ),
+        labelStyle: AppTypography.body.copyWith(
+          color: AppColors.textSecondary,
+        ),
+        floatingLabelStyle: AppTypography.caption.copyWith(
+          color: AppColors.accent,
+          fontWeight: FontWeight.w600,
+        ),
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
           borderSide: const BorderSide(color: AppColors.border),

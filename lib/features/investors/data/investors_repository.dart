@@ -107,6 +107,10 @@ class InvestorsRepository {
     });
   }
 
+  /// Get list of project investors once
+  Future<List<ProjectInvestorModel>> getProjectInvestors(String projectId) =>
+      watchProjectInvestors(projectId).first;
+
   /// Watch all project participations for a single investor across all projects
   Stream<List<ProjectInvestorModel>> watchInvestorProjects(String investorId) {
     final query = _db.select(_db.projectInvestors).join([
@@ -140,20 +144,16 @@ class InvestorsRepository {
     });
   }
 
-  /// Add capital investment to project and recalculate Ownership % (AC-03.1, AC-03.2, AC-03.3)
-  Future<void> addProjectInvestment({
+  /// Add capital investment to project and recalculate Ownership % (AC-03.1, AC-03.2)
+  Future<ProjectInvestorModel> addProjectInvestment({
     required String projectId,
     required String investorId,
     required double investedAmount,
-    required String agreementDocPath,
+    String? agreementDocPath,
     OwnershipMethod method = OwnershipMethod.capitalBased,
     double? manualOwnershipPercent,
     required String userId,
   }) async {
-    // AC-03.3: Refuse to save if no agreement document is attached
-    if (agreementDocPath.trim().isEmpty) {
-      throw ArgumentError('Investor Agreement Document is required to complete investment.');
-    }
     if (investedAmount < 0) {
       throw ArgumentError('Invested Amount * must be greater than or equal to zero.');
     }
@@ -190,6 +190,32 @@ class InvestorsRepository {
             timestamp: Value(DateTime.now()),
           ),
         );
+
+    final row = await (_db.select(_db.projectInvestors).join([
+      innerJoin(
+        _db.investors,
+        _db.investors.id.equalsExp(_db.projectInvestors.investorId),
+      ),
+    ])..where(_db.projectInvestors.id.equals(id))).getSingle();
+
+    final pi = row.readTable(_db.projectInvestors);
+    final inv = row.readTable(_db.investors);
+
+    final resolvedMethod = OwnershipMethod.values.firstWhere(
+      (m) => m.name == pi.ownershipMethod,
+      orElse: () => OwnershipMethod.capitalBased,
+    );
+
+    return ProjectInvestorModel(
+      id: pi.id,
+      projectId: pi.projectId,
+      investorId: pi.investorId,
+      investorName: inv.name,
+      investedAmount: pi.investedAmount,
+      ownershipPercent: pi.ownershipPercent,
+      ownershipMethod: resolvedMethod,
+      createdAt: pi.createdAt,
+    );
   }
 
   /// Recalculate Ownership % for all capital-based investors in a project (AC-03.1 & AC-03.2)
@@ -216,6 +242,15 @@ class InvestorsRepository {
           ),
         );
       }
+    }
+  }
+
+  /// Recalculate Ownership % for all projects across the database
+  Future<void> recalculateAllCapitalBasedOwnership() async {
+    final allProjectInvestors = await _db.select(_db.projectInvestors).get();
+    final projectIds = allProjectInvestors.map((pi) => pi.projectId).toSet();
+    for (final pid in projectIds) {
+      await recalculateCapitalBasedOwnership(pid);
     }
   }
 
@@ -368,11 +403,11 @@ class InvestorsRepository {
     return _toInvestorModel(row);
   }
 
-  /// Delete investor by admin after checking all invested money & profit are fully withdrawn/settled
-  Future<void> deleteInvestor(String investorId, {required String userId}) async {
+  /// Delete investor by admin (with optional settlement check / force cascade cleanup)
+  Future<void> deleteInvestor(String investorId, {required String userId, bool force = true}) async {
     final summary = await getInvestorFinancialSummary(investorId);
 
-    if (!summary.canBeDeleted) {
+    if (!force && !summary.canBeDeleted) {
       final capitalStr = CalculationEngine.formatCurrency(summary.totalInvestedCapital);
       final profitStr = CalculationEngine.formatCurrency(summary.totalProfitEarned);
       final withdrawnStr = CalculationEngine.formatCurrency(summary.totalWithdrawnPayouts);
@@ -385,12 +420,15 @@ class InvestorsRepository {
       );
     }
 
-    // Clean up project investor allocations & distributions for settled investor
+    // Clean up project investor allocations & distributions for investor
     await (_db.delete(_db.projectInvestors)..where((tbl) => tbl.investorId.equals(investorId))).go();
     await (_db.delete(_db.distributions)..where((tbl) => tbl.investorId.equals(investorId))).go();
 
     // Delete investor profile
     await (_db.delete(_db.investors)..where((tbl) => tbl.id.equals(investorId))).go();
+
+    // Recalculate remaining capital ownership for all projects this investor was attached to
+    await recalculateAllCapitalBasedOwnership();
 
     // Audit log
     await _db.into(_db.auditLogs).insert(
@@ -401,7 +439,7 @@ class InvestorsRepository {
             entityType: const Value('Investor'),
             entityId: Value(investorId),
             details: Value(
-              'Deleted investor "${summary.investorName}" (ID: $investorId). All invested capital and profit distributions (₹${summary.totalWithdrawnPayouts}) were fully settled.',
+              'Deleted investor "${summary.investorName}" (ID: $investorId). Cleaned up allocations & distributions.',
             ),
             timestamp: Value(DateTime.now()),
           ),

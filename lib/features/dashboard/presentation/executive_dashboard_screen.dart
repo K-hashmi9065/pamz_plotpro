@@ -492,7 +492,10 @@ class _ExecutiveMetricCard extends StatelessWidget {
 }
 
 Widget _miniLandStat(String label, double sqFt, {Color? color}) {
-  final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
+  final totalKatta = LandUnitConverter.sqFtToKatta(sqFt);
+  final kattaStr = totalKatta == totalKatta.roundToDouble()
+      ? totalKatta.toInt().toString()
+      : double.parse(totalKatta.toStringAsFixed(1)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
   return Column(
     children: [
       Text(label, style: AppTypography.secondary.copyWith(fontSize: 10)),
@@ -502,7 +505,7 @@ Widget _miniLandStat(String label, double sqFt, {Color? color}) {
         style: AppTypography.body.copyWith(fontSize: 11, fontWeight: FontWeight.bold, color: color ?? AppColors.textPrimary),
       ),
       Text(
-        '(${kd.katta}K ${kd.dhur}D)',
+        '($kattaStr Kattha)',
         style: AppTypography.secondary.copyWith(fontSize: 10, color: AppColors.textMuted),
       ),
     ],
@@ -573,29 +576,29 @@ class _ProjectPortfolioCard extends ConsumerWidget {
               }
 
               final remainingAreaSqFt = (proj.landAreaSqFt - soldAreaSqFt).clamp(0.0, double.infinity);
-              final totalKattaDhur = LandUnitConverter.sqFtToKattaDhur(proj.landAreaSqFt);
-              final soldKattaDhur = LandUnitConverter.sqFtToKattaDhur(soldAreaSqFt);
-              final remKattaDhur = LandUnitConverter.sqFtToKattaDhur(remainingAreaSqFt);
+              final totalKatthaStr = LandUnitConverter.sqFtToKatta(proj.landAreaSqFt).toStringAsFixed(2);
+              final soldKatthaStr = LandUnitConverter.sqFtToKatta(soldAreaSqFt).toStringAsFixed(2);
+              final remKatthaStr = LandUnitConverter.sqFtToKatta(remainingAreaSqFt).toStringAsFixed(2);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Land Bought: ${CalculationEngine.indianNumberFormat.format(proj.landAreaSqFt.round())} Sq.Ft. (${totalKattaDhur.katta}K ${totalKattaDhur.dhur}D)',
+                    'Land Bought: ${CalculationEngine.indianNumberFormat.format(proj.landAreaSqFt.round())} Sq.Ft. ($totalKatthaStr Kattha)',
                     style: AppTypography.secondary.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
                       Text(
-                        'Sold: ${CalculationEngine.indianNumberFormat.format(soldAreaSqFt.round())} Sq.Ft. (${soldKattaDhur.katta}K ${soldKattaDhur.dhur}D)',
+                        'Sold: ${CalculationEngine.indianNumberFormat.format(soldAreaSqFt.round())} Sq.Ft. ($soldKatthaStr Kattha)',
                         style: AppTypography.secondary.copyWith(fontSize: 11, color: AppColors.successText, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Rem: ${CalculationEngine.indianNumberFormat.format(remainingAreaSqFt.round())} Sq.Ft. (${remKattaDhur.katta}K ${remKattaDhur.dhur}D)',
+                    'Rem: ${CalculationEngine.indianNumberFormat.format(remainingAreaSqFt.round())} Sq.Ft. ($remKatthaStr Kattha)',
                     style: AppTypography.secondary.copyWith(fontSize: 11, color: AppColors.accent, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),

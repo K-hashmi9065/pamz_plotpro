@@ -32,7 +32,11 @@ class PlotSubdivisionDialog extends ConsumerStatefulWidget {
 class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
   final _formKey = GlobalKey<FormState>();
   final _numberController = TextEditingController();
+  final _numberOfPlotsController = TextEditingController(text: '1');
+  final _ratePerKattaController = TextEditingController();
   final _priceController = TextEditingController();
+
+  final ValueNotifier<int> _numberOfPlotsNotifier = ValueNotifier<int>(1);
 
   // Plot Area & Measurement Notifiers
   final ValueNotifier<double> _plotAreaSqFtNotifier = ValueNotifier<double>(0.0);
@@ -46,15 +50,6 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
   final ValueNotifier<double?> _plotBreadthFtNotifier = ValueNotifier<double?>(null);
   final ValueNotifier<double?> _plotBreadthInNotifier = ValueNotifier<double?>(null);
 
-  // Road Access state Notifiers
-  final ValueNotifier<bool> _includeRoadNotifier = ValueNotifier<bool>(false);
-  final _roadNameController = TextEditingController(text: 'Access Road');
-  final _roadLengthFtController = TextEditingController();
-  final _roadLengthInController = TextEditingController();
-  final _roadBreadthFtController = TextEditingController();
-  final _roadBreadthInController = TextEditingController();
-  final ValueNotifier<double> _roadAreaSqFtNotifier = ValueNotifier<double>(0.0);
-
   final ValueNotifier<String?> _selectedProjectIdNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<PlotStatus> _selectedStatusNotifier = ValueNotifier<PlotStatus>(PlotStatus.available);
   final ValueNotifier<bool> _isSavingNotifier = ValueNotifier<bool>(false);
@@ -64,6 +59,13 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
   void initState() {
     super.initState();
     _selectedProjectIdNotifier.value = widget.preselectedProjectId;
+
+    _numberOfPlotsController.addListener(() {
+      final raw = _numberOfPlotsController.text.trim();
+      final val = raw.isEmpty ? 1 : (int.tryParse(raw) ?? 1);
+      _numberOfPlotsNotifier.value = val.clamp(1, 500);
+    });
+
     _autoGeneratePlotNumber();
   }
 
@@ -75,15 +77,43 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
     }
   }
 
+  List<String> _getGeneratedPlotNumbers() {
+    final startingNumber = _numberController.text.trim().isEmpty
+        ? 'AXPN0001'
+        : _numberController.text.trim();
+    final count = _numberOfPlotsNotifier.value;
+    if (count <= 1) return [startingNumber];
+
+    final regExp = RegExp(r'^(.*?)(\d+)$');
+    final match = regExp.firstMatch(startingNumber);
+    if (match != null) {
+      final prefix = match.group(1) ?? '';
+      final digitsStr = match.group(2) ?? '';
+      final startNum = int.tryParse(digitsStr) ?? 1;
+      final padLength = digitsStr.length;
+      final list = <String>[];
+      for (int i = 0; i < count; i++) {
+        final currentNum = startNum + i;
+        list.add('$prefix${currentNum.toString().padLeft(padLength, '0')}');
+      }
+      return list;
+    } else {
+      final base = startingNumber;
+      final list = <String>[];
+      for (int i = 1; i <= count; i++) {
+        list.add('$base-$i');
+      }
+      return list;
+    }
+  }
+
   @override
   void dispose() {
     _numberController.dispose();
+    _numberOfPlotsController.dispose();
+    _numberOfPlotsNotifier.dispose();
+    _ratePerKattaController.dispose();
     _priceController.dispose();
-    _roadNameController.dispose();
-    _roadLengthFtController.dispose();
-    _roadLengthInController.dispose();
-    _roadBreadthFtController.dispose();
-    _roadBreadthInController.dispose();
     _plotAreaSqFtNotifier.dispose();
     _plotMeasurementUnitNotifier.dispose();
     _plotDisplayAreaNotifier.dispose();
@@ -93,8 +123,6 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
     _plotLengthInNotifier.dispose();
     _plotBreadthFtNotifier.dispose();
     _plotBreadthInNotifier.dispose();
-    _includeRoadNotifier.dispose();
-    _roadAreaSqFtNotifier.dispose();
     _selectedProjectIdNotifier.dispose();
     _selectedStatusNotifier.dispose();
     _isSavingNotifier.dispose();
@@ -102,18 +130,52 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
     super.dispose();
   }
 
-  void _calculateRoadArea() {
-    final lFt = double.tryParse(_roadLengthFtController.text.trim()) ?? 0.0;
-    final lIn = double.tryParse(_roadLengthInController.text.trim()) ?? 0.0;
-    final bFt = double.tryParse(_roadBreadthFtController.text.trim()) ?? 0.0;
-    final bIn = double.tryParse(_roadBreadthInController.text.trim()) ?? 0.0;
+  void _onRatePerKattaChanged() {
+    final rawRate = _ratePerKattaController.text.trim();
+    if (rawRate.isEmpty) return;
+    final rate = double.tryParse(rawRate);
+    if (rate == null || rate <= 0) return;
 
-    _roadAreaSqFtNotifier.value = LandUnitConverter.calculateRoadAreaSqFt(
-      lengthFt: lFt,
-      lengthIn: lIn,
-      breadthFt: bFt,
-      breadthIn: bIn,
-    );
+    final totalKattha = LandUnitConverter.sqFtToKatta(_plotAreaSqFtNotifier.value);
+    if (totalKattha > 0) {
+      final totalPrice = totalKattha * rate;
+      final formattedPrice = totalPrice == totalPrice.roundToDouble()
+          ? totalPrice.toInt().toString()
+          : totalPrice.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+      _priceController.text = formattedPrice;
+    }
+  }
+
+  void _onPriceChanged() {
+    final rawPrice = _priceController.text.trim();
+    if (rawPrice.isEmpty) return;
+    final price = double.tryParse(rawPrice);
+    if (price == null || price <= 0) return;
+
+    final totalKattha = LandUnitConverter.sqFtToKatta(_plotAreaSqFtNotifier.value);
+    if (totalKattha > 0) {
+      final computedRate = price / totalKattha;
+      final formattedRate = computedRate == computedRate.roundToDouble()
+          ? computedRate.toInt().toString()
+          : computedRate.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+      _ratePerKattaController.text = formattedRate;
+    }
+  }
+
+  void _recalculatePlotPriceFromRate() {
+    final rawRate = _ratePerKattaController.text.trim();
+    if (rawRate.isEmpty) return;
+    final rate = double.tryParse(rawRate);
+    if (rate != null && rate > 0) {
+      final totalKattha = LandUnitConverter.sqFtToKatta(_plotAreaSqFtNotifier.value);
+      if (totalKattha > 0) {
+        final totalPrice = totalKattha * rate;
+        final formattedPrice = totalPrice == totalPrice.roundToDouble()
+            ? totalPrice.toInt().toString()
+            : totalPrice.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+        _priceController.text = formattedPrice;
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -127,18 +189,24 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
       return;
     }
 
+    final count = _numberOfPlotsNotifier.value;
+    if (count < 1) {
+      _errorMessageNotifier.value = 'Number of plots must be at least 1';
+      return;
+    }
+
     _isSavingNotifier.value = true;
     _errorMessageNotifier.value = null;
 
     try {
       final repo = ref.read(plotsRepositoryProvider);
       final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
-      final mainPlotNumber = _numberController.text.trim();
+      final plotNumbers = _getGeneratedPlotNumbers();
 
-      // Create Main Plot with independent measurement
-      await repo.createPlot(
+      // Create Plots in batch with identical measurements
+      await repo.createPlotsBatch(
         projectId: _selectedProjectIdNotifier.value!,
-        plotNumber: mainPlotNumber,
+        plotNumbers: plotNumbers,
         areaSqFt: _plotAreaSqFtNotifier.value,
         measurementUnit: _plotMeasurementUnitNotifier.value,
         displayArea: _plotDisplayAreaNotifier.value,
@@ -153,36 +221,15 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
         userId: 'admin_user',
       );
 
-      // If Road Access is included and road area > 0, create dedicated Road Plot record
-      if (_includeRoadNotifier.value && _roadAreaSqFtNotifier.value > 0) {
-        final roadName = _roadNameController.text.trim().isEmpty
-            ? '$mainPlotNumber Road'
-            : '${_roadNameController.text.trim()} ($mainPlotNumber)';
-
-        await repo.createPlot(
-          projectId: _selectedProjectIdNotifier.value!,
-          plotNumber: roadName,
-          areaSqFt: _roadAreaSqFtNotifier.value,
-          measurementUnit: 'Square Feet',
-          displayArea: _roadAreaSqFtNotifier.value,
-          expectedPrice: 0.0,
-          status: PlotStatus.reserved, // Road corridor reserved
-          userId: 'admin_user',
-        );
-      }
-
       if (mounted) {
         final messenger = ScaffoldMessenger.of(context);
         final navigator = Navigator.of(context);
         navigator.pop();
+        final successMsg = count > 1
+            ? '$count Plots (${plotNumbers.first} - ${plotNumbers.last}) created successfully!'
+            : 'Plot ${plotNumbers.first} created successfully!';
         messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              _includeRoadNotifier.value && _roadAreaSqFtNotifier.value > 0
-                  ? 'Plot $mainPlotNumber & Road Parcel created successfully!'
-                  : 'Plot $mainPlotNumber created successfully!',
-            ),
-          ),
+          SnackBar(content: Text(successMsg)),
         );
       }
     } catch (e) {
@@ -202,7 +249,7 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
       ),
       backgroundColor: AppColors.surface,
       child: Container(
-        width: 660,
+        width: 680,
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
@@ -220,7 +267,13 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Subdivide Land into Plot', style: AppTypography.cardTitle),
+                        Row(
+                          children: [
+                            const Icon(Icons.grid_view_outlined, color: AppColors.accent, size: 24),
+                            const SizedBox(width: 8),
+                            Text('Subdivide Land into Plot', style: AppTypography.cardTitle),
+                          ],
+                        ),
                         IconButton(
                           icon: const Icon(Icons.close, color: AppColors.textSecondary),
                           onPressed: isSaving ? null : () => Navigator.of(context).pop(),
@@ -270,15 +323,19 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Plot Details Row
+                    // Plot Details Row: Plot Number / Starting ID, Number of Plots (Optional), Status
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           flex: 3,
                           child: TextFormField(
                             controller: _numberController,
+                            onChanged: (_) {
+                              _numberOfPlotsNotifier.value = _numberOfPlotsNotifier.value;
+                            },
                             decoration: InputDecoration(
-                              labelText: 'Plot Number / ID *',
+                              labelText: 'Plot Number / Starting ID *',
                               hintText: 'e.g. AXPN0001',
                               suffixIcon: IconButton(
                                 icon: const Icon(Icons.auto_awesome, size: 18, color: AppColors.accent),
@@ -291,7 +348,31 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                                 : null,
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: _numberOfPlotsController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Total Plots (Optional)',
+                              hintText: '1',
+                              prefixIcon: Icon(Icons.copy_outlined, size: 18),
+                            ),
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) return null;
+                              final count = int.tryParse(val.trim());
+                              if (count == null || count < 1) {
+                                return 'Min 1';
+                              }
+                              if (count > 500) {
+                                return 'Max 500';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           flex: 3,
                           child: ValueListenableBuilder<PlotStatus>(
@@ -304,24 +385,15 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                                 items: const [
                                   DropdownMenuItem(
                                     value: PlotStatus.available,
-                                    child: Text(
-                                      'AVAILABLE',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    child: Text('AVAILABLE', overflow: TextOverflow.ellipsis),
                                   ),
                                   DropdownMenuItem(
                                     value: PlotStatus.reserved,
-                                    child: Text(
-                                      'RESERVED',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    child: Text('RESERVED', overflow: TextOverflow.ellipsis),
                                   ),
                                   DropdownMenuItem(
                                     value: PlotStatus.booked,
-                                    child: Text(
-                                      'BOOKED',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    child: Text('BOOKED', overflow: TextOverflow.ellipsis),
                                   ),
                                 ],
                                 onChanged: (val) {
@@ -333,19 +405,44 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
 
-                    // Price Field
-                    TextFormField(
-                      controller: _priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Expected Plot Sale Price (Optional)',
-                        hintText: 'e.g. 250000',
-                        prefixText: '₹ ',
-                      ),
+                    // Multi-Plot Preview Banner
+                    ValueListenableBuilder<int>(
+                      valueListenable: _numberOfPlotsNotifier,
+                      builder: (context, count, _) {
+                        if (count <= 1) return const SizedBox.shrink();
+                        final plotNumbers = _getGeneratedPlotNumbers();
+                        final firstId = plotNumbers.first;
+                        final lastId = plotNumbers.last;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.layers_outlined, size: 16, color: AppColors.accent),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Will create $count identical plots ($firstId to $lastId) with same length & breadth.',
+                                    style: AppTypography.secondary.copyWith(
+                                      color: AppColors.accent,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
                     // Land Measurement Input Widget
                     LandMeasurementInputWidget(
@@ -379,190 +476,110 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                         _plotLengthInNotifier.value = lengthIn;
                         _plotBreadthFtNotifier.value = breadthFt;
                         _plotBreadthInNotifier.value = breadthIn;
+                        _recalculatePlotPriceFromRate();
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    // Road Option Switch Section
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _includeRoadNotifier,
-                      builder: (context, includeRoad, _) {
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceSubtle,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: includeRoad ? AppColors.accent : AppColors.border,
-                              width: includeRoad ? 1.5 : 1.0,
+                    // Rate per Kattha & Expected Plot Sale Price Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _ratePerKattaController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(
+                              labelText: 'Rate per Kattha (Optional)',
+                              hintText: 'e.g. 500000',
+                              prefixText: '₹ ',
+                              suffixText: '/ Kattha',
                             ),
+                            onChanged: (_) => _onRatePerKattaChanged(),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.add_road,
-                                        color: includeRoad ? AppColors.accent : AppColors.textSecondary,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Add Road / Access Pathway',
-                                        style: AppTypography.body.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: includeRoad ? AppColors.accent : AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Switch(
-                                    value: includeRoad,
-                                    onChanged: (val) {
-                                      _includeRoadNotifier.value = val;
-                                    },
-                                  ),
-                                ],
-                              ),
-
-                              if (includeRoad) ...[
-                                const SizedBox(height: 12),
-                                TextFormField(
-                                  controller: _roadNameController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Road Identifier / Name',
-                                    hintText: 'e.g. Frontage Access Road',
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: _roadLengthFtController,
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Road Length (Ft)',
-                                          hintText: 'e.g. 100',
-                                          suffixText: 'ft',
-                                        ),
-                                        onChanged: (_) => _calculateRoadArea(),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: _roadLengthInController,
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Length (Inches)',
-                                          hintText: '0 - 11',
-                                          suffixText: 'in',
-                                        ),
-                                        onChanged: (_) => _calculateRoadArea(),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: _roadBreadthFtController,
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Road Breadth / Width (Ft)',
-                                          hintText: 'e.g. 15',
-                                          suffixText: 'ft',
-                                        ),
-                                        onChanged: (_) => _calculateRoadArea(),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: TextFormField(
-                                        controller: _roadBreadthInController,
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        decoration: const InputDecoration(
-                                          labelText: 'Breadth (Inches)',
-                                          hintText: '0 - 11',
-                                          suffixText: 'in',
-                                        ),
-                                        onChanged: (_) => _calculateRoadArea(),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _priceController,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(
+                              labelText: 'Expected Plot Sale Price (Optional)',
+                              hintText: 'e.g. 250000',
+                              prefixText: '₹ ',
+                            ),
+                            onChanged: (_) => _onPriceChanged(),
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
 
-                    // Plot & Road Cutting Summary Box
+                    // Plot Cutting Summary Box
                     ValueListenableBuilder<double>(
                       valueListenable: _plotAreaSqFtNotifier,
                       builder: (context, plotAreaSqFt, _) {
-                        return ValueListenableBuilder<bool>(
-                          valueListenable: _includeRoadNotifier,
-                          builder: (context, includeRoad, _) {
-                            return ValueListenableBuilder<double>(
-                              valueListenable: _roadAreaSqFtNotifier,
-                              builder: (context, roadAreaSqFt, _) {
-                                return Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppColors.border),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Subdivision Cutting Summary', style: AppTypography.cardTitle.copyWith(fontSize: 13)),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text('Net Plot Area:', style: AppTypography.secondary),
-                                          Text(LandUnitConverter.formatAllUnits(plotAreaSqFt), style: AppTypography.body),
-                                        ],
-                                      ),
-                                      if (includeRoad) ...[
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text('Road Corridor Area:', style: AppTypography.secondary.copyWith(color: AppColors.warningText)),
-                                            Text(
-                                              LandUnitConverter.formatAllUnits(roadAreaSqFt),
-                                              style: AppTypography.body.copyWith(color: AppColors.warningText, fontWeight: FontWeight.bold),
-                                            ),
-                                          ],
-                                        ),
-                                        const Divider(),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text('Total Land Cut (Plot + Road):', style: AppTypography.body.copyWith(fontWeight: FontWeight.bold)),
-                                            Text(
-                                              LandUnitConverter.formatAllUnits(plotAreaSqFt + roadAreaSqFt),
-                                              style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent),
-                                            ),
-                                          ],
+                        return ValueListenableBuilder<int>(
+                          valueListenable: _numberOfPlotsNotifier,
+                          builder: (context, count, _) {
+                            final totalPlotsArea = plotAreaSqFt * count;
+                            return Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Subdivision Cutting Summary', style: AppTypography.cardTitle.copyWith(fontSize: 13)),
+                                  const SizedBox(height: 8),
+                                  if (count > 1) ...[
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Single Plot Area:', style: AppTypography.secondary),
+                                        Text(LandUnitConverter.formatAllUnits(plotAreaSqFt), style: AppTypography.body),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Number of Plots to Cut:', style: AppTypography.secondary),
+                                        Text('$count Plots', style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Total Plots Area ($count × ${plotAreaSqFt.toStringAsFixed(0)}):', style: AppTypography.secondary.copyWith(fontWeight: FontWeight.w600)),
+                                        Text(LandUnitConverter.formatAllUnits(totalPlotsArea), style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                    const Divider(),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Total Land Cut ($count Plots):', style: AppTypography.body.copyWith(fontWeight: FontWeight.bold)),
+                                        Text(
+                                          LandUnitConverter.formatAllUnits(totalPlotsArea),
+                                          style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent),
                                         ),
                                       ],
-                                    ],
-                                  ),
-                                );
-                              },
+                                    ),
+                                  ] else ...[
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('Total Land Cut (1 Plot):', style: AppTypography.body.copyWith(fontWeight: FontWeight.bold)),
+                                        Text(LandUnitConverter.formatAllUnits(plotAreaSqFt), style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, color: AppColors.accent)),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
                             );
                           },
                         );
@@ -579,18 +596,23 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                           child: const Text('Cancel'),
                         ),
                         const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: isSaving ? null : _submit,
-                          child: isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Create Plot'),
+                        ValueListenableBuilder<int>(
+                          valueListenable: _numberOfPlotsNotifier,
+                          builder: (context, count, _) {
+                            return ElevatedButton(
+                              onPressed: isSaving ? null : _submit,
+                              child: isSaving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(count > 1 ? 'Create $count Plots' : 'Create Plot'),
+                            );
+                          },
                         ),
                       ],
                     ),

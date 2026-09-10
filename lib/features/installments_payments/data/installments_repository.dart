@@ -100,6 +100,7 @@ class InstallmentsRepository {
 
         return InstallmentModel(
           id: inst.id,
+          projectId: project?.id ?? sale?.projectId ?? pa?.projectId,
           saleId: inst.saleId,
           purchaseAgreementId: inst.purchaseAgreementId,
           installmentNumber: inst.installmentNumber,
@@ -138,6 +139,7 @@ class InstallmentsRepository {
 
         return InstallmentModel(
           id: inst.id,
+          projectId: project?.id ?? sale?.projectId,
           saleId: inst.saleId,
           purchaseAgreementId: inst.purchaseAgreementId,
           installmentNumber: inst.installmentNumber,
@@ -154,13 +156,22 @@ class InstallmentsRepository {
     });
   }
 
-  /// Watch all transactions joined with Project and Buyer details
+  /// Watch all transactions joined with Project, Buyer, and Landowner details
   Stream<List<TransactionModel>> watchAllTransactions() {
     final query = _db.select(_db.transactions).join([
       leftOuterJoin(_db.projects, _db.projects.id.equalsExp(_db.transactions.projectId)),
       leftOuterJoin(_db.installments, _db.installments.id.equalsExp(_db.transactions.installmentId)),
       leftOuterJoin(_db.sales, _db.sales.id.equalsExp(_db.installments.saleId)),
       leftOuterJoin(_db.buyers, _db.buyers.id.equalsExp(_db.sales.buyerId)),
+      leftOuterJoin(_db.purchaseAgreements, _db.purchaseAgreements.id.equalsExp(_db.installments.purchaseAgreementId)),
+      leftOuterJoin(
+        _db.landowners,
+        _db.landowners.id.equalsExp(_db.purchaseAgreements.landownerId) |
+            _db.landowners.id.equalsExp(_db.projects.landownerId),
+      ),
+    ])..orderBy([
+      OrderingTerm.desc(_db.transactions.paymentDate),
+      OrderingTerm.desc(_db.transactions.createdAt),
     ]);
 
     return query.watch().map((rows) {
@@ -168,11 +179,19 @@ class InstallmentsRepository {
         final tx = row.readTable(_db.transactions);
         final project = row.readTableOrNull(_db.projects);
         final buyer = row.readTableOrNull(_db.buyers);
+        final landowner = row.readTableOrNull(_db.landowners);
 
         final methodEnum = PaymentMethod.values.firstWhere(
           (m) => m.name == tx.paymentMethod,
           orElse: () => PaymentMethod.bankTransfer,
         );
+
+        String? customerOrLandownerName;
+        if (buyer != null && buyer.name.isNotEmpty) {
+          customerOrLandownerName = buyer.name;
+        } else if (landowner != null && landowner.name.isNotEmpty) {
+          customerOrLandownerName = '${landowner.name} (Landowner)';
+        }
 
         return TransactionModel(
           id: tx.id,
@@ -187,7 +206,7 @@ class InstallmentsRepository {
           voidReason: tx.voidReason,
           createdBy: tx.createdBy,
           createdAt: tx.createdAt,
-          buyerName: buyer?.name,
+          buyerName: customerOrLandownerName,
           projectName: project != null ? '${project.name} (${project.code})' : null,
         );
       }).toList();
@@ -314,6 +333,153 @@ class InstallmentsRepository {
         );
 
     final row = await (_db.select(_db.transactions)..where((tbl) => tbl.id.equals(transactionId))).getSingle();
+    return _toTransactionModel(row);
+  }
+
+  /// Record payment to a landowner against a purchase agreement / project
+  Future<TransactionModel> recordLandownerPayment({
+    required String projectId,
+    required String purchaseAgreementId,
+    String? installmentId,
+    required double amount,
+    required DateTime paymentDate,
+    required PaymentMethod paymentMethod,
+    String? referenceNumber,
+    String? receiptPath,
+    required String userId,
+    String? landownerName,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError('Payment Amount * must be greater than zero.');
+    }
+
+    final transactionId = _uuid.v4();
+    String? targetInstallmentId = installmentId;
+
+    if (targetInstallmentId != null && targetInstallmentId.isNotEmpty) {
+      final inst = await (_db.select(_db.installments)
+            ..where((tbl) => tbl.id.equals(targetInstallmentId!)))
+          .getSingleOrNull();
+
+      if (inst != null) {
+        final newPaid = inst.paidAmount + amount;
+        final newStatus = newPaid >= inst.dueAmount
+            ? InstallmentStatus.paid
+            : InstallmentStatus.partiallyPaid;
+
+        await (_db.update(_db.installments)
+              ..where((tbl) => tbl.id.equals(inst.id)))
+            .write(
+          InstallmentsCompanion(
+            paidAmount: Value(newPaid),
+            status: Value(newStatus.name),
+          ),
+        );
+      }
+    } else {
+      final paInstallments = await (_db.select(_db.installments)
+            ..where((tbl) => tbl.purchaseAgreementId.equals(purchaseAgreementId))
+            ..orderBy([(tbl) => OrderingTerm.asc(tbl.installmentNumber)]))
+          .get();
+
+      if (paInstallments.isNotEmpty) {
+        double remainingToDistribute = amount;
+        for (final inst in paInstallments) {
+          if (remainingToDistribute <= 0) break;
+          final dueLeft = inst.dueAmount - inst.paidAmount;
+          if (dueLeft <= 0) continue;
+
+          final payForThisInst =
+              remainingToDistribute >= dueLeft ? dueLeft : remainingToDistribute;
+          final newPaid = inst.paidAmount + payForThisInst;
+          final newStatus = newPaid >= inst.dueAmount
+              ? InstallmentStatus.paid
+              : InstallmentStatus.partiallyPaid;
+
+          await (_db.update(_db.installments)
+                ..where((tbl) => tbl.id.equals(inst.id)))
+              .write(
+            InstallmentsCompanion(
+              paidAmount: Value(newPaid),
+              status: Value(newStatus.name),
+            ),
+          );
+
+          targetInstallmentId ??= inst.id;
+          remainingToDistribute -= payForThisInst;
+        }
+
+        if (remainingToDistribute > 0 && paInstallments.isNotEmpty) {
+          final lastInst = paInstallments.last;
+          final currentPaid = (await (_db.select(_db.installments)
+                ..where((tbl) => tbl.id.equals(lastInst.id)))
+              .getSingle())
+              .paidAmount;
+          await (_db.update(_db.installments)
+                ..where((tbl) => tbl.id.equals(lastInst.id)))
+              .write(
+            InstallmentsCompanion(
+              paidAmount: Value(currentPaid + remainingToDistribute),
+              status: const Value('PAID'),
+            ),
+          );
+        }
+      } else {
+        final newInstId = _uuid.v4();
+        await _db.into(_db.installments).insert(
+              InstallmentsCompanion(
+                id: Value(newInstId),
+                purchaseAgreementId: Value(purchaseAgreementId),
+                installmentNumber: const Value(1),
+                dueDate: Value(paymentDate),
+                dueAmount: Value(amount),
+                paidAmount: Value(amount),
+                status: const Value('PAID'),
+                createdAt: Value(DateTime.now()),
+              ),
+            );
+        targetInstallmentId = newInstId;
+      }
+    }
+
+    // Insert transaction
+    await _db.into(_db.transactions).insert(
+          TransactionsCompanion(
+            id: Value(transactionId),
+            projectId: Value(projectId),
+            installmentId: Value(targetInstallmentId),
+            amount: Value(amount),
+            paymentDate: Value(paymentDate),
+            paymentMethod: Value(paymentMethod.name),
+            referenceNumber: Value(referenceNumber?.trim()),
+            receiptPath: Value(receiptPath?.trim()),
+            isVoided: const Value(false),
+            createdBy: Value(userId),
+            createdAt: Value(DateTime.now()),
+          ),
+        );
+
+    // Audit log
+    final nameDisplay = landownerName != null && landownerName.isNotEmpty
+        ? ' to landowner $landownerName'
+        : ' to landowner';
+    await _db.into(_db.auditLogs).insert(
+          AuditLogsCompanion(
+            id: Value(_uuid.v4()),
+            userId: Value(userId),
+            action: const Value('RECORD_LANDOWNER_PAYMENT'),
+            entityType: const Value('PurchaseAgreement'),
+            entityId: Value(purchaseAgreementId),
+            details: Value(
+              'Recorded land payment of ₹${amount % 1 == 0 ? amount.toInt() : amount.round()}$nameDisplay via ${paymentMethod.name}. Ref: ${referenceNumber?.trim() ?? "N/A"}',
+            ),
+            timestamp: Value(DateTime.now()),
+          ),
+        );
+
+    final row = await (_db.select(_db.transactions)
+          ..where((tbl) => tbl.id.equals(transactionId)))
+        .getSingle();
     return _toTransactionModel(row);
   }
 

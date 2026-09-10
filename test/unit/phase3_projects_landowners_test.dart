@@ -62,6 +62,54 @@ void main() {
       );
     });
 
+    test('Project name must be unique on creation and update', () async {
+      await projectsRepo.createProject(
+        name: 'Unique Project One',
+        location: 'Sector 1',
+        landAreaSqFt: 50000,
+        userId: 'admin_user',
+      );
+
+      // Attempt to create another project with same name (exact)
+      expect(
+        () => projectsRepo.createProject(
+          name: 'Unique Project One',
+          location: 'Sector 2',
+          landAreaSqFt: 60000,
+          userId: 'admin_user',
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // Attempt to create another project with same name (case-insensitive & whitespace)
+      expect(
+        () => projectsRepo.createProject(
+          name: '  unique project one  ',
+          location: 'Sector 3',
+          landAreaSqFt: 70000,
+          userId: 'admin_user',
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // Second project with distinct name
+      final projTwo = await projectsRepo.createProject(
+        name: 'Unique Project Two',
+        location: 'Sector 2',
+        landAreaSqFt: 60000,
+        userId: 'admin_user',
+      );
+
+      // Attempt to update projTwo to have the name of projOne
+      expect(
+        () => projectsRepo.updateProject(
+          projTwo.copyWith(name: 'unique project one'),
+          userId: 'admin_user',
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
     test('AC-01.3: Project financial boundary isolation', () async {
       final projA = await projectsRepo.createProject(
         name: 'Project A',

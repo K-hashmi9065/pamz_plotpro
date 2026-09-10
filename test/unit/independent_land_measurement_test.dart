@@ -59,7 +59,7 @@ void main() {
       expect(refetchedProject.measurementUnit, equals('Acre'));
     });
 
-    test('TEST 2: Project (10 Acre) & Plot (1 Katta + 2 Dhur) independent measurement', () async {
+    test('TEST 2: Project (10 Acre) & Plot (1 Kattha) independent measurement', () async {
       final double acreSqFt = LandUnitConverter.unitToSqFt(unit: 'Acre', displayArea: 10.0);
       final project = await projectsRepo.createProject(
         name: 'Valley Estate',
@@ -70,27 +70,23 @@ void main() {
         userId: 'admin',
       );
 
-      final double kattaDhurSqFt = LandUnitConverter.unitToSqFt(
-        unit: 'Katta + Dhur',
-        displayArea: 0.0,
-        kattaValue: 1.0,
-        dhurValue: 2.0,
+      final double kattaSqFt = LandUnitConverter.unitToSqFt(
+        unit: 'Kattha',
+        displayArea: 1.0,
       );
 
       final plot = await plotsRepo.createPlot(
         projectId: project.id,
         plotNumber: 'A-01',
-        areaSqFt: kattaDhurSqFt,
-        measurementUnit: 'Katta + Dhur',
-        kattaValue: 1.0,
-        dhurValue: 2.0,
+        areaSqFt: kattaSqFt,
+        measurementUnit: 'Kattha',
+        displayArea: 1.0,
         userId: 'admin',
       );
 
-      expect(plot.measurementUnit, equals('Katta + Dhur'));
-      expect(plot.kattaValue, equals(1.0));
-      expect(plot.dhurValue, equals(2.0));
-      expect(plot.formattedArea, equals('1 Kattha + 2 Dhur'));
+      expect(plot.measurementUnit, equals('Kattha'));
+      expect(plot.displayArea, equals(1.0));
+      expect(plot.formattedArea, equals('1 Kattha'));
 
       final refetchedProject = await projectsRepo.getProjectById(project.id);
       expect(refetchedProject!.measurementUnit, equals('Acre'));
@@ -107,20 +103,17 @@ void main() {
         userId: 'admin',
       );
 
-      // Plot A-01: 1 Katta + 2 Dhur
+      // Plot A-01: 1 Kattha
       final plot1SqFt = LandUnitConverter.unitToSqFt(
-        unit: 'Katta + Dhur',
-        displayArea: 0.0,
-        kattaValue: 1.0,
-        dhurValue: 2.0,
+        unit: 'Kattha',
+        displayArea: 1.0,
       );
       final plot1 = await plotsRepo.createPlot(
         projectId: project.id,
         plotNumber: 'A-01',
         areaSqFt: plot1SqFt,
-        measurementUnit: 'Katta + Dhur',
-        kattaValue: 1.0,
-        dhurValue: 2.0,
+        measurementUnit: 'Kattha',
+        displayArea: 1.0,
         userId: 'admin',
       );
 
@@ -148,11 +141,11 @@ void main() {
         userId: 'admin',
       );
 
-      expect(plot1.formattedArea, equals('1 Kattha + 2 Dhur'));
+      expect(plot1.formattedArea, equals('1 Kattha'));
       expect(plot2.formattedArea, equals('2500 Sq Ft'));
       expect(plot3.formattedArea, equals('2 Dhur'));
 
-      expect(plot1.measurementUnit, equals('Katta + Dhur'));
+      expect(plot1.measurementUnit, equals('Kattha'));
       expect(plot2.measurementUnit, equals('Square Feet'));
       expect(plot3.measurementUnit, equals('Dhur'));
     });
@@ -167,14 +160,13 @@ void main() {
         userId: 'admin',
       );
 
-      final plotSqFt = LandUnitConverter.unitToSqFt(unit: 'Katta + Dhur', displayArea: 0.0, kattaValue: 1.0, dhurValue: 2.0);
+      final plotSqFt = LandUnitConverter.unitToSqFt(unit: 'Kattha', displayArea: 1.0);
       final plot = await plotsRepo.createPlot(
         projectId: project.id,
         plotNumber: 'A-01',
         areaSqFt: plotSqFt,
-        measurementUnit: 'Katta + Dhur',
-        kattaValue: 1.0,
-        dhurValue: 2.0,
+        measurementUnit: 'Kattha',
+        displayArea: 1.0,
         userId: 'admin',
       );
 
@@ -185,12 +177,12 @@ void main() {
       );
       await projectsRepo.updateProject(updatedProject, userId: 'admin');
 
-      // Fetch plot and verify it remains 1 Katta + 2 Dhur
+      // Fetch plot and verify it remains 1 Kattha
       final plots = await plotsRepo.watchPlotsForProject(project.id).first;
       final refetchedPlot = plots.firstWhere((p) => p.id == plot.id);
 
-      expect(refetchedPlot.measurementUnit, equals('Katta + Dhur'));
-      expect(refetchedPlot.formattedArea, equals('1 Kattha + 2 Dhur'));
+      expect(refetchedPlot.measurementUnit, equals('Kattha'));
+      expect(refetchedPlot.formattedArea, equals('1 Kattha'));
     });
 
     test('TEST 5: Editing Plot measurement does NOT modify Project measurement', () async {
@@ -214,9 +206,9 @@ void main() {
 
       // Edit Plot measurement
       final updatedPlot = plot.copyWith(
-        measurementUnit: 'Katta',
+        measurementUnit: 'Kattha',
         displayArea: 2.0,
-        areaSqFt: 2722.5,
+        areaSqFt: 2250.0,
       );
       await plotsRepo.updatePlot(updatedPlot, userId: 'admin');
 
@@ -239,8 +231,8 @@ void main() {
       await plotsRepo.createPlot(
         projectId: project.id,
         plotNumber: 'P-10',
-        areaSqFt: 1361.25,
-        measurementUnit: 'Katta',
+        areaSqFt: 1125.0,
+        measurementUnit: 'Kattha',
         displayArea: 1.0,
         userId: 'admin',
       );
@@ -251,7 +243,7 @@ void main() {
       expect(pRow.displayArea, equals(1.0));
 
       final plotRows = await (db.select(db.plots)..where((tbl) => tbl.projectId.equals(project.id))).get();
-      expect(plotRows.first.measurementUnit, equals('Katta'));
+      expect(plotRows.first.measurementUnit, equals('Kattha'));
       expect(plotRows.first.displayArea, equals(1.0));
     });
 
@@ -265,14 +257,13 @@ void main() {
         userId: 'admin',
       );
 
-      final p1SqFt = LandUnitConverter.unitToSqFt(unit: 'Katta + Dhur', displayArea: 0.0, kattaValue: 1.0, dhurValue: 2.0);
+      final p1SqFt = LandUnitConverter.unitToSqFt(unit: 'Kattha', displayArea: 1.0);
       await plotsRepo.createPlot(
         projectId: project.id,
         plotNumber: 'A-01',
         areaSqFt: p1SqFt,
-        measurementUnit: 'Katta + Dhur',
-        kattaValue: 1.0,
-        dhurValue: 2.0,
+        measurementUnit: 'Kattha',
+        displayArea: 1.0,
         status: PlotStatus.available,
         userId: 'admin',
       );
@@ -301,7 +292,7 @@ void main() {
       final plots = await plotsRepo.watchPlotsForProject(project.id).first;
       final formattedDisplays = plots.map((p) => p.formattedArea).toList();
 
-      expect(formattedDisplays, contains('1 Kattha + 2 Dhur'));
+      expect(formattedDisplays, contains('1 Kattha'));
       expect(formattedDisplays, contains('2500 Sq Ft'));
       expect(formattedDisplays, contains('2 Dhur'));
     });
@@ -327,19 +318,18 @@ void main() {
         userId: 'admin',
       );
 
-      // Plot A-02: 1 Katta + 2 Dhur (1,361.25 + 136.125 = 1,497.375 Sq Ft)
-      final p2SqFt = LandUnitConverter.unitToSqFt(unit: 'Katta + Dhur', displayArea: 0.0, kattaValue: 1.0, dhurValue: 2.0);
+      // Plot A-02: 1 Kattha (1,125 Sq Ft)
+      final p2SqFt = LandUnitConverter.unitToSqFt(unit: 'Kattha', displayArea: 1.0);
       final p2 = await plotsRepo.createPlot(
         projectId: project.id,
         plotNumber: 'A-02',
         areaSqFt: p2SqFt,
-        measurementUnit: 'Katta + Dhur',
-        kattaValue: 1.0,
-        dhurValue: 2.0,
+        measurementUnit: 'Kattha',
+        displayArea: 1.0,
         userId: 'admin',
       );
 
-      // Plot A-03: 2 Dhur (136.125 Sq Ft)
+      // Plot A-03: 2 Dhur (112.5 Sq Ft)
       final p3SqFt = LandUnitConverter.unitToSqFt(unit: 'Dhur', displayArea: 2.0);
       final p3 = await plotsRepo.createPlot(
         projectId: project.id,
@@ -357,13 +347,11 @@ void main() {
         plotAreasSqFt: plots.map((p) => p.areaSqFt).toList(),
       );
 
-      // Total plots sq ft = 2500 + 1497.375 + 136.125 = 4133.5 Sq Ft
-      // Remaining = 217,800 - 4133.5 = 213,666.5 Sq Ft = 4.91 Acre
       expect(remainingLandStr, contains('Acre'));
 
       // Original plot measurements must remain completely unchanged
       expect(p1.formattedArea, equals('2500 Sq Ft'));
-      expect(p2.formattedArea, equals('1 Kattha + 2 Dhur'));
+      expect(p2.formattedArea, equals('1 Kattha'));
       expect(p3.formattedArea, equals('2 Dhur'));
     });
   });

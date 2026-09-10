@@ -481,7 +481,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
           _buildTipRow(Icons.grid_view, 'Search Plots', 'Type plot number or status e.g. "102" or "Available"'),
           _buildTipRow(Icons.landscape, 'Search Landowners', 'Type landowner name, phone number, or PAN card'),
           _buildTipRow(Icons.attach_money, 'Search Investors', 'Type investor name, phone, or email address'),
-          _buildTipRow(Icons.person_outline, 'Search Buyers & Sales', 'Type buyer name, sale agreement reference, or phone'),
+          _buildTipRow(Icons.people_outline, 'Search Customers & Sales', 'Type customer name, sale agreement reference, or phone'),
           _buildTipRow(Icons.receipt_long, 'Search Expenses', 'Type vendor name or category e.g. "Legal", "Fencing"'),
         ],
       ),

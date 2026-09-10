@@ -6,7 +6,9 @@ import '../domain/project_investor_model.dart';
 
 final investorsRepositoryProvider = Provider<InvestorsRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  return InvestorsRepository(db);
+  final repo = InvestorsRepository(db);
+  repo.recalculateAllCapitalBasedOwnership();
+  return repo;
 });
 
 final investorsListStreamProvider = StreamProvider<List<InvestorModel>>((ref) {
@@ -30,4 +32,10 @@ final allProjectInvestorsStreamProvider =
     StreamProvider<List<ProjectInvestorModel>>((ref) {
   final repo = ref.watch(investorsRepositoryProvider);
   return repo.watchAllProjectInvestors();
+});
+
+final investorFinancialSummaryFutureProvider =
+    FutureProvider.family<InvestorFinancialSummary, String>((ref, investorId) {
+  final repo = ref.watch(investorsRepositoryProvider);
+  return repo.getInvestorFinancialSummary(investorId);
 });

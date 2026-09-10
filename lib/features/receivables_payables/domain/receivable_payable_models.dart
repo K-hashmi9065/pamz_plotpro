@@ -24,11 +24,11 @@ class BuyerReceivableModel {
   });
 
   String get agingBucket {
-    if (overdueDays <= 0) return 'Current';
-    if (overdueDays <= 30) return '0-30 Days';
-    if (overdueDays <= 60) return '31-60 Days';
-    if (overdueDays <= 90) return '61-90 Days';
-    return '90+ Days';
+    if (overdueDays <= 0) return 'On Time';
+    if (overdueDays <= 30) return '1-30 Days Due';
+    if (overdueDays <= 60) return '31-60 Days Overdue';
+    if (overdueDays <= 90) return '61-90 Days Overdue';
+    return '90+ Days Overdue';
   }
 }
 

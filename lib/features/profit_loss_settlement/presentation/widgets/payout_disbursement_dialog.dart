@@ -40,7 +40,12 @@ class _PayoutDisbursementDialogState extends ConsumerState<PayoutDisbursementDia
   @override
   void initState() {
     super.initState();
-    _amountController.text = widget.payout.remainingPayoutBalance.toStringAsFixed(2);
+    final double maxAvailable = (widget.payout.capitalInvested +
+            widget.payout.allocatedProfitShare -
+            widget.payout.payoutsDisbursed)
+        .clamp(0.0, double.infinity);
+    _amountController.text =
+        maxAvailable > 0 ? maxAvailable.round().toString() : '0';
   }
 
   @override
@@ -90,6 +95,9 @@ class _PayoutDisbursementDialogState extends ConsumerState<PayoutDisbursementDia
   @override
   Widget build(BuildContext context) {
     final p = widget.payout;
+    final double totalAmount = p.capitalInvested + p.allocatedProfitShare;
+    final double availableBalance =
+        (totalAmount - p.payoutsDisbursed).clamp(0.0, double.infinity);
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -140,16 +148,31 @@ class _PayoutDisbursementDialogState extends ConsumerState<PayoutDisbursementDia
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Ownership %: ${p.ownershipPercent.toStringAsFixed(2)}% | Capital: ${CalculationEngine.formatCurrency(p.capitalInvested)}',
+                      'Contributed Capital: ${CalculationEngine.formatCurrency(p.capitalInvested)} | Ownership: ${p.ownershipPercent.toStringAsFixed(2)}%',
                       style: AppTypography.secondary,
                     ),
                     Text(
-                      'Allocated Profit Share: ${CalculationEngine.formatCurrency(p.allocatedProfitShare)} (ROI: ${p.roiPercent.toStringAsFixed(2)}%)',
+                      'Profit Share: ${CalculationEngine.formatCurrency(p.allocatedProfitShare)} (ROI: ${p.roiPercent.toStringAsFixed(2)}%)',
                       style: AppTypography.secondary.copyWith(color: AppColors.successText),
                     ),
                     Text(
-                      'Remaining Settlement Balance: ${CalculationEngine.formatCurrency(p.remainingPayoutBalance)}',
-                      style: AppTypography.secondary.copyWith(color: AppColors.accent),
+                      'Total Amount (Capital + Profit): ${CalculationEngine.formatCurrency(totalAmount)}',
+                      style: AppTypography.secondary.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Already Withdrawn: ${CalculationEngine.formatCurrency(p.payoutsDisbursed)}',
+                      style: AppTypography.secondary.copyWith(color: AppColors.warningText),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Available for Withdrawal: ${CalculationEngine.formatCurrency(availableBalance)}',
+                      style: AppTypography.secondary.copyWith(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -184,6 +207,9 @@ class _PayoutDisbursementDialogState extends ConsumerState<PayoutDisbursementDia
                   final num = double.tryParse(val);
                   if (num == null || num <= 0) {
                     return 'Enter a valid positive payout amount';
+                  }
+                  if (num > availableBalance) {
+                    return 'Withdrawal amount cannot exceed total available balance of ${CalculationEngine.formatCurrency(availableBalance)}';
                   }
                   return null;
                 },

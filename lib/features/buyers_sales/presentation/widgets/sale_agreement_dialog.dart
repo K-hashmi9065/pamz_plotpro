@@ -115,16 +115,13 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
     if (sqFt <= 0) return '0 $unit';
     if (unit.toLowerCase().contains('katta') ||
         unit.toLowerCase().contains('kattha')) {
-      final totalKatta = sqFt / LandUnitConverter.sqFtPerKatta;
-      final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
+      final totalKatta = LandUnitConverter.sqFtToKatta(sqFt);
       final kattaStr = totalKatta == totalKatta.roundToDouble()
           ? totalKatta.toInt().toString()
           : double.parse(totalKatta.toStringAsFixed(2))
               .toString()
-              .replaceAll(RegExp(r'\.0+$'), '');
-      if (kd.dhur > 0 && totalKatta != totalKatta.roundToDouble()) {
-        return '$kattaStr Kattha (${kd.katta}K ${kd.dhur}D)';
-      }
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
       return '$kattaStr Kattha';
     }
     return LandUnitConverter.formatLandMeasurement(

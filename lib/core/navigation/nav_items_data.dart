@@ -44,8 +44,8 @@ abstract class NavItemsData {
     ),
     NavItem(
       id: 'buyers_sales',
-      title: 'Buyers & Sales',
-      icon: Icons.sell_outlined,
+      title: 'Customers',
+      icon: Icons.people_outline,
       routePath: '/buyers-sales',
     ),
     NavItem(

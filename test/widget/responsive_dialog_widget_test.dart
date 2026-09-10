@@ -38,9 +38,11 @@ void main() {
       await tester.pumpWidget(buildTestableWidget(const ProjectFormDialog()));
       await tester.pump();
 
-      expect(find.text('Create New Project'), findsOneWidget);
+      expect(find.text('Create New Land Project'), findsOneWidget);
       expect(find.text('Project Name *'), findsOneWidget);
-      expect(find.text('Location *'), findsOneWidget);
+      expect(find.text('Location / Survey Site *'), findsOneWidget);
+      expect(find.text('Rate per Kattha (Optional)'), findsOneWidget);
+      expect(find.text('Land Purchase Price (Optional)'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Create Project'), findsOneWidget);
 

@@ -22,6 +22,55 @@ final projectsDateRangeFilterProvider = StateProvider.autoDispose<DashboardDateR
 class ProjectsListScreen extends ConsumerWidget {
   const ProjectsListScreen({super.key});
 
+  Future<void> _handleDeleteProject(BuildContext context, WidgetRef ref, dynamic project) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever_outlined, color: AppColors.dangerText, size: 24),
+            const SizedBox(width: 8),
+            Text('Confirm Delete Project', style: AppTypography.cardTitle),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete project "${project.name}" (${project.code})?\n\n'
+          'WARNING: This will delete the project and cleanly clean up all mapped plots, expenses, and agreements for this project.',
+          style: AppTypography.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete Project', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final repo = ref.read(projectsRepositoryProvider);
+        await repo.deleteProject(project.id, userId: 'admin_user', cascade: true);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Project "${project.name}" deleted successfully!')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting project: $e')),
+          );
+        }
+      }
+    }
+  }
+
   BadgeType _getBadgeType(ProjectStatus status) {
     switch (status) {
       case ProjectStatus.active:
@@ -272,6 +321,13 @@ class ProjectsListScreen extends ConsumerWidget {
                               context,
                               project: project,
                             ),
+                          ),
+                          IconButton(
+                            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.dangerText),
+                            tooltip: 'Delete Project',
+                            onPressed: () => _handleDeleteProject(context, ref, project),
                           ),
                         ],
                       ],

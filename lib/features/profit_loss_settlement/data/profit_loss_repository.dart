@@ -34,13 +34,22 @@ class ProfitLossRepository {
 
         final cashCollected = txs.fold(0.0, (sum, tx) => sum + tx.amount);
 
+        // Fetch all project expenses dynamically
+        final expenses = await (_db.select(_db.expenses)
+              ..where((tbl) => tbl.projectId.equals(project.id)))
+            .get();
+        final totalCapitalized = expenses
+            .where((e) => e.isCapitalized)
+            .fold(0.0, (sum, e) => sum + e.amount);
+        final dynamicActualCost = project.purchasePrice + totalCapitalized;
+
         results.add(
           ProjectProfitLossModel(
             projectId: project.id,
             projectName: project.name,
             totalAgreedSales: totalAgreedSales,
             directSaleExpenses: directSaleExpenses,
-            actualProjectCost: project.actualCost,
+            actualProjectCost: dynamicActualCost,
             cashCollected: cashCollected,
           ),
         );
@@ -132,7 +141,7 @@ class ProfitLossRepository {
             entityType: const Value('ProjectInvestor'),
             entityId: Value(projectInvestorId),
             details: Value(
-              'Disbursed profit payout of ₹$payoutAmount to investor. Ref: ${paymentReference.trim()}',
+              'Disbursed profit payout of ₹${payoutAmount % 1 == 0 ? payoutAmount.toInt() : payoutAmount.round()} to investor. Ref: ${paymentReference.trim()}',
             ),
             timestamp: Value(DateTime.now()),
           ),

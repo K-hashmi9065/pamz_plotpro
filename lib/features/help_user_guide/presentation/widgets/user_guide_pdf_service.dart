@@ -100,7 +100,7 @@ abstract class UserGuidePdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  '${AppConstants.appName} v${AppConstants.appVersion} • Confidential Operational Manual',
+                  '${AppConstants.appName} v${AppConstants.appVersion} | Confidential Operational Manual',
                   style: pw.TextStyle(
                     font: fontRegular,
                     fontSize: 8,

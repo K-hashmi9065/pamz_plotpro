@@ -61,31 +61,27 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
   // Single Amount controller
   final _amountController = TextEditingController();
 
-  // Compound Kattha + Dhur controllers
-  final _kattaController = TextEditingController();
-  final _dhurController = TextEditingController();
-
-  // Dimension (Length x Breadth in Ft & In) controllers
+  // Dimension (Length x Breadth in Ft & In) controllers & focus nodes
   final _lengthFtController = TextEditingController();
   final _lengthInController = TextEditingController();
   final _breadthFtController = TextEditingController();
   final _breadthInController = TextEditingController();
 
+  final _lengthFtFocusNode = FocusNode();
+  final _lengthInFocusNode = FocusNode();
+  final _breadthFtFocusNode = FocusNode();
+  final _breadthInFocusNode = FocusNode();
+
   static const String dimensionsUnit = LandMeasurementInputWidget.dimensionsUnit;
 
   static const List<String> _unitOptions = [
     dimensionsUnit,
-    'Kattha',
-    'Kattha + Dhur',
     'Square Feet',
-    'Square Meter',
-    'Acre',
-    'Bigha',
+    'Kattha',
     'Dhur',
     'Decimal',
   ];
 
-  static bool isCompoundUnit(String unit) => unit == 'Kattha + Dhur' || unit == 'Katta + Dhur';
   static bool isDimensionUnit(String unit) =>
       unit == dimensionsUnit ||
       unit == 'Dimensions (L × B)' ||
@@ -105,24 +101,24 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
   @override
   void initState() {
     super.initState();
+    _lengthFtFocusNode.addListener(_handleLengthFtFocusChange);
+    _lengthInFocusNode.addListener(_handleLengthInFocusChange);
+    _breadthFtFocusNode.addListener(_handleBreadthFtFocusChange);
+    _breadthInFocusNode.addListener(_handleBreadthInFocusChange);
+
     final bool hasDimensions = widget.initialLengthFt != null && widget.initialLengthFt! > 0;
-    String startUnit = 'Kattha';
+    String startUnit = 'Square Feet';
     bool startDimMode = false;
 
     if (isDimensionUnit(widget.initialUnit) ||
         (hasDimensions &&
-            (widget.initialUnit == dimensionsUnit ||
-                (widget.initialDisplayArea == null && widget.initialKattaValue == null)))) {
+            (widget.initialUnit == dimensionsUnit || widget.initialDisplayArea == null))) {
       startUnit = dimensionsUnit;
       startDimMode = true;
     } else {
       startUnit = _unitOptions.contains(widget.initialUnit)
           ? widget.initialUnit
-          : (widget.initialUnit == 'Katta'
-              ? 'Kattha'
-              : (widget.initialUnit == 'Katta + Dhur'
-                  ? 'Kattha + Dhur'
-                  : 'Kattha'));
+          : (widget.initialUnit == 'Katta' ? 'Kattha' : 'Square Feet');
       startDimMode = false;
     }
 
@@ -131,7 +127,7 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
     _dimensionModeNotifier = ValueNotifier<bool>(startDimMode);
 
     double initialAmount = widget.initialDisplayArea ?? 0.0;
-    if (initialAmount <= 0 && widget.initialAreaSqFt > 0 && !isCompoundUnit(startUnit) && !startDimMode) {
+    if (initialAmount <= 0 && widget.initialAreaSqFt > 0 && !startDimMode) {
       initialAmount = LandUnitConverter.sqFtToUnitValue(widget.initialAreaSqFt, startUnit);
     }
 
@@ -139,46 +135,22 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
         ? (initialAmount == initialAmount.roundToDouble() ? initialAmount.toInt().toString() : initialAmount.toString())
         : '';
 
-    double? initialK = widget.initialKattaValue;
-    double? initialD = widget.initialDhurValue;
-    if (isCompoundUnit(startUnit) && (initialK == null || initialK <= 0) && widget.initialAreaSqFt > 0) {
-      final kd = LandUnitConverter.sqFtToKattaDhur(widget.initialAreaSqFt);
-      initialK = kd.katta.toDouble();
-      initialD = kd.dhur;
-    }
-
-    _kattaController.text = initialK != null && initialK > 0
-        ? (initialK == initialK.roundToDouble() ? initialK.toInt().toString() : initialK.toString())
-        : '';
-
-    _dhurController.text = initialD != null && initialD > 0
-        ? (initialD == initialD.roundToDouble() ? initialD.toInt().toString() : initialD.toString())
-        : '';
-
     if (widget.initialLengthFt != null && widget.initialLengthFt! > 0) {
-      _lengthFtController.text = widget.initialLengthFt! == widget.initialLengthFt!.roundToDouble()
-          ? widget.initialLengthFt!.toInt().toString()
-          : widget.initialLengthFt!.toString();
-    }
-    if (widget.initialLengthIn != null) {
-      _lengthInController.text = widget.initialLengthIn! == widget.initialLengthIn!.roundToDouble()
-          ? widget.initialLengthIn!.toInt().toString()
-          : widget.initialLengthIn!.toString();
-    } else if (widget.initialLengthFt != null && widget.initialLengthFt! > 0) {
-      _lengthInController.text = '0';
+      final totalL = widget.initialLengthFt! + ((widget.initialLengthIn ?? 0.0) / 12.0);
+      final fi = LandUnitConverter.decimalFeetToFeetInches(totalL);
+      _lengthFtController.text = fi.feet.toString();
+      _lengthInController.text = fi.inches > 0
+          ? (fi.inches == fi.inches.roundToDouble() ? fi.inches.toInt().toString() : fi.inches.toString())
+          : '';
     }
 
     if (widget.initialBreadthFt != null && widget.initialBreadthFt! > 0) {
-      _breadthFtController.text = widget.initialBreadthFt! == widget.initialBreadthFt!.roundToDouble()
-          ? widget.initialBreadthFt!.toInt().toString()
-          : widget.initialBreadthFt!.toString();
-    }
-    if (widget.initialBreadthIn != null) {
-      _breadthInController.text = widget.initialBreadthIn! == widget.initialBreadthIn!.roundToDouble()
-          ? widget.initialBreadthIn!.toInt().toString()
-          : widget.initialBreadthIn!.toString();
-    } else if (widget.initialBreadthFt != null && widget.initialBreadthFt! > 0) {
-      _breadthInController.text = '0';
+      final totalB = widget.initialBreadthFt! + ((widget.initialBreadthIn ?? 0.0) / 12.0);
+      final fi = LandUnitConverter.decimalFeetToFeetInches(totalB);
+      _breadthFtController.text = fi.feet.toString();
+      _breadthInController.text = fi.inches > 0
+          ? (fi.inches == fi.inches.roundToDouble() ? fi.inches.toInt().toString() : fi.inches.toString())
+          : '';
     }
 
     _recalculate(notifyParent: false);
@@ -186,12 +158,20 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
 
   @override
   void dispose() {
+    _lengthFtFocusNode.removeListener(_handleLengthFtFocusChange);
+    _lengthInFocusNode.removeListener(_handleLengthInFocusChange);
+    _breadthFtFocusNode.removeListener(_handleBreadthFtFocusChange);
+    _breadthInFocusNode.removeListener(_handleBreadthInFocusChange);
+
+    _lengthFtFocusNode.dispose();
+    _lengthInFocusNode.dispose();
+    _breadthFtFocusNode.dispose();
+    _breadthInFocusNode.dispose();
+
     _unitNotifier.dispose();
     _sqFtNotifier.dispose();
     _dimensionModeNotifier.dispose();
     _amountController.dispose();
-    _kattaController.dispose();
-    _dhurController.dispose();
     _lengthFtController.dispose();
     _lengthInController.dispose();
     _breadthFtController.dispose();
@@ -199,11 +179,75 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
     super.dispose();
   }
 
+  void _handleLengthFtFocusChange() {
+    if (!_lengthFtFocusNode.hasFocus) {
+      _normalizeLength();
+    }
+  }
+
+  void _handleLengthInFocusChange() {
+    if (!_lengthInFocusNode.hasFocus) {
+      _normalizeLength();
+    }
+  }
+
+  void _handleBreadthFtFocusChange() {
+    if (!_breadthFtFocusNode.hasFocus) {
+      _normalizeBreadth();
+    }
+  }
+
+  void _handleBreadthInFocusChange() {
+    if (!_breadthInFocusNode.hasFocus) {
+      _normalizeBreadth();
+    }
+  }
+
+  /// Normalizes length (e.g. 405.5 ft -> 405 ft 6 in; 18 in -> 1 ft 6 in)
+  void _normalizeLength() {
+    final rawFt = _lengthFtController.text.trim();
+    final rawIn = _lengthInController.text.trim();
+    if (rawFt.isEmpty && rawIn.isEmpty) return;
+
+    final lFt = double.tryParse(rawFt) ?? 0.0;
+    final lIn = double.tryParse(rawIn) ?? 0.0;
+
+    final totalDecimalFeet = lFt + (lIn / 12.0);
+    if (totalDecimalFeet > 0) {
+      final fi = LandUnitConverter.decimalFeetToFeetInches(totalDecimalFeet);
+      _lengthFtController.text = fi.feet.toString();
+      final inStr = fi.inches == fi.inches.roundToDouble()
+          ? fi.inches.toInt().toString()
+          : fi.inches.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+      _lengthInController.text = inStr == '0' ? '' : inStr;
+      _recalculate();
+    }
+  }
+
+  /// Normalizes breadth (e.g. 30.5 ft -> 30 ft 6 in; 18 in -> 1 ft 6 in)
+  void _normalizeBreadth() {
+    final rawFt = _breadthFtController.text.trim();
+    final rawIn = _breadthInController.text.trim();
+    if (rawFt.isEmpty && rawIn.isEmpty) return;
+
+    final bFt = double.tryParse(rawFt) ?? 0.0;
+    final bIn = double.tryParse(rawIn) ?? 0.0;
+
+    final totalDecimalFeet = bFt + (bIn / 12.0);
+    if (totalDecimalFeet > 0) {
+      final fi = LandUnitConverter.decimalFeetToFeetInches(totalDecimalFeet);
+      _breadthFtController.text = fi.feet.toString();
+      final inStr = fi.inches == fi.inches.roundToDouble()
+          ? fi.inches.toInt().toString()
+          : fi.inches.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+      _breadthInController.text = inStr == '0' ? '' : inStr;
+      _recalculate();
+    }
+  }
+
   void _recalculate({bool notifyParent = true}) {
     double sqFt = 0.0;
     double? displayArea;
-    double? kattaVal;
-    double? dhurVal;
 
     final currentUnit = _safeUnit(_unitNotifier.value);
     final isDim = _dimensionModeNotifier.value || isDimensionUnit(currentUnit);
@@ -222,27 +266,14 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
       );
 
       if (sqFt > 0) {
-        final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
-        kattaVal = kd.katta.toDouble();
-        dhurVal = kd.dhur;
         displayArea = LandUnitConverter.sqFtToUnitValue(sqFt, 'Kattha');
       }
-    } else if (isCompoundUnit(currentUnit)) {
-      kattaVal = double.tryParse(_kattaController.text.trim()) ?? 0.0;
-      dhurVal = double.tryParse(_dhurController.text.trim()) ?? 0.0;
-      sqFt = LandUnitConverter.kattaDhurToSqFt(kattaVal, dhurVal);
-      displayArea = LandUnitConverter.sqFtToUnitValue(sqFt, 'Kattha');
     } else {
       displayArea = double.tryParse(_amountController.text.trim()) ?? 0.0;
       sqFt = LandUnitConverter.unitToSqFt(
         unit: currentUnit,
         displayArea: displayArea,
       );
-      if (sqFt > 0) {
-        final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
-        kattaVal = kd.katta.toDouble();
-        dhurVal = kd.dhur;
-      }
     }
 
     _sqFtNotifier.value = sqFt;
@@ -258,8 +289,8 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
         measurementUnit: isDim ? dimensionsUnit : currentUnit,
         areaSqFt: sqFt,
         displayArea: displayArea,
-        kattaValue: kattaVal,
-        dhurValue: dhurVal,
+        kattaValue: null,
+        dhurValue: null,
         lengthFt: isDim ? lFt : null,
         lengthIn: isDim ? (lIn ?? 0.0) : null,
         breadthFt: isDim ? bFt : null,
@@ -284,7 +315,6 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
           builder: (context, isDimMode, _) {
             final activeUnit = _safeUnit(selectedUnit);
             final isDimension = isDimMode || isDimensionUnit(activeUnit);
-            final isCompound = isCompoundUnit(activeUnit);
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,12 +437,17 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                               flex: 3,
                               child: TextFormField(
                                 controller: _lengthFtController,
+                                focusNode: _lengthFtFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Length (Feet) *',
-                                  hintText: 'e.g. 50',
+                                  hintText: 'e.g. 50 or 405.5',
                                   suffixText: 'ft',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeLength();
+                                  _lengthInFocusNode.requestFocus();
+                                },
                                 onChanged: (_) => _recalculate(),
                                 validator: (val) {
                                   if (isDimension) {
@@ -429,12 +464,17 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                               flex: 2,
                               child: TextFormField(
                                 controller: _lengthInController,
+                                focusNode: _lengthInFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Length (Inches)',
                                   hintText: '0 - 11',
                                   suffixText: 'in',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeLength();
+                                  _breadthFtFocusNode.requestFocus();
+                                },
                                 onChanged: (_) => _recalculate(),
                               ),
                             ),
@@ -450,12 +490,17 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                               flex: 3,
                               child: TextFormField(
                                 controller: _breadthFtController,
+                                focusNode: _breadthFtFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Breadth / Width (Feet) *',
-                                  hintText: 'e.g. 30',
+                                  hintText: 'e.g. 30 or 30.5',
                                   suffixText: 'ft',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeBreadth();
+                                  _breadthInFocusNode.requestFocus();
+                                },
                                 onChanged: (_) => _recalculate(),
                                 validator: (val) {
                                   if (isDimension) {
@@ -472,12 +517,17 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                               flex: 2,
                               child: TextFormField(
                                 controller: _breadthInController,
+                                focusNode: _breadthInFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Breadth (Inches)',
                                   hintText: '0 - 11',
                                   suffixText: 'in',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeBreadth();
+                                  _breadthInFocusNode.unfocus();
+                                },
                                 onChanged: (_) => _recalculate(),
                               ),
                             ),
@@ -486,7 +536,7 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                       ],
                     ),
                   ),
-                ] else if (!isCompound) ...[
+                ] else ...[
                   // Single Amount & Measurement Dropdown
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,7 +553,7 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                           ),
                           onChanged: (_) => _recalculate(),
                           validator: (val) {
-                            if (!isCompoundUnit(activeUnit) && !isDimension) {
+                            if (!isDimension) {
                               if (val == null || val.trim().isEmpty) {
                                 return 'Amount is required';
                               }
@@ -517,84 +567,6 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<String>(
-                          initialValue: activeUnit,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Measurement *',
-                          ),
-                          items: _unitOptions.map((unit) {
-                            return DropdownMenuItem<String>(
-                              value: unit,
-                              child: Text(
-                                unit,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              _unitNotifier.value = val;
-                              _dimensionModeNotifier.value = isDimensionUnit(val);
-                              _recalculate();
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  // Compound Kattha + Dhur Inputs & Measurement Dropdown
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: TextFormField(
-                          controller: _kattaController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Kattha *',
-                            hintText: 'e.g. 1',
-                            suffixText: 'Kattha',
-                          ),
-                          onChanged: (_) => _recalculate(),
-                          validator: (val) {
-                            if (isCompoundUnit(activeUnit) && !isDimension) {
-                              final k = double.tryParse(_kattaController.text.trim()) ?? 0.0;
-                              final d = double.tryParse(_dhurController.text.trim()) ?? 0.0;
-                              if (k < 0) return 'Cannot be negative';
-                              if (k == 0 && d == 0) return 'Enter Kattha or Dhur';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 2,
-                        child: TextFormField(
-                          controller: _dhurController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Dhur',
-                            hintText: 'e.g. 2',
-                            suffixText: 'Dhur',
-                          ),
-                          onChanged: (_) => _recalculate(),
-                          validator: (val) {
-                            if (isCompoundUnit(activeUnit) && !isDimension) {
-                              final d = double.tryParse(_dhurController.text.trim()) ?? 0.0;
-                              if (d < 0) return 'Cannot be negative';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<String>(
@@ -652,8 +624,6 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                                           areaSqFt: computedSqFt,
                                           measurementUnit: activeUnit,
                                           displayArea: double.tryParse(_amountController.text.trim()),
-                                          kattaValue: double.tryParse(_kattaController.text.trim()),
-                                          dhurValue: double.tryParse(_dhurController.text.trim()),
                                         )}  •  Equivalent: ${LandUnitConverter.formatAllUnits(computedSqFt)}',
                                   style: AppTypography.secondary.copyWith(
                                     color: AppColors.textPrimary,

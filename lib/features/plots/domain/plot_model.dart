@@ -38,8 +38,41 @@ class PlotModel {
     required this.createdAt,
   });
 
-  bool get isAvailable => status == PlotStatus.available;
-  bool get isSold => status == PlotStatus.sold;
+  bool get isRoad =>
+      plotNumber.toLowerCase().contains('road') ||
+      plotNumber.toLowerCase().contains('access road') ||
+      plotNumber.toLowerCase().startsWith('road');
+
+  bool get isAvailable => !isRoad && status == PlotStatus.available;
+  bool get isSold => !isRoad && status == PlotStatus.sold;
+
+  String get formattedLength {
+    final ft = lengthFt ?? 0.0;
+    final inch = lengthIn ?? 0.0;
+    if (ft == 0 && inch == 0) return '—';
+    final ftStr = ft == ft.roundToDouble()
+        ? ft.toInt().toString()
+        : ft.toString();
+    final inStr = inch == inch.roundToDouble()
+        ? inch.toInt().toString()
+        : inch.toString();
+    if (inch == 0) return '$ftStr ft';
+    return '$ftStr ft $inStr in';
+  }
+
+  String get formattedBreadth {
+    final ft = breadthFt ?? 0.0;
+    final inch = breadthIn ?? 0.0;
+    if (ft == 0 && inch == 0) return '—';
+    final ftStr = ft == ft.roundToDouble()
+        ? ft.toInt().toString()
+        : ft.toString();
+    final inStr = inch == inch.roundToDouble()
+        ? inch.toInt().toString()
+        : inch.toString();
+    if (inch == 0) return '$ftStr ft';
+    return '$ftStr ft $inStr in';
+  }
 
   String get formattedArea {
     return LandUnitConverter.formatLandMeasurement(
@@ -89,4 +122,3 @@ class PlotModel {
     );
   }
 }
-

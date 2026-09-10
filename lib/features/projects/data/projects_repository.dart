@@ -75,7 +75,46 @@ class ProjectsRepository {
     return _toModel(prj, lo);
   }
 
-  /// Create a new project (AC-01.1 validation: Name, Location, Area > 0)
+  /// Watch single project by ID stream (with landowner join)
+  Stream<ProjectModel?> watchProjectById(String id) {
+    final query = _db.select(_db.projects).join([
+      leftOuterJoin(
+        _db.landowners,
+        _db.landowners.id.equalsExp(_db.projects.landownerId),
+      ),
+    ])..where(_db.projects.id.equals(id));
+
+    return query.watchSingleOrNull().map((row) {
+      if (row == null) return null;
+      final prj = row.readTable(_db.projects);
+      final lo = row.readTableOrNull(_db.landowners);
+      return _toModel(prj, lo);
+    });
+  }
+
+  /// Check if a project name is already taken (case-insensitive, trimmed)
+  Future<bool> isProjectNameTaken(String name, {String? excludeProjectId}) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return false;
+
+    if (excludeProjectId != null) {
+      final rows = await _db.customSelect(
+        'SELECT id FROM projects WHERE LOWER(TRIM(name)) = LOWER(?) AND id != ? LIMIT 1',
+        variables: [Variable.withString(trimmed), Variable.withString(excludeProjectId)],
+        readsFrom: {_db.projects},
+      ).get();
+      return rows.isNotEmpty;
+    } else {
+      final rows = await _db.customSelect(
+        'SELECT id FROM projects WHERE LOWER(TRIM(name)) = LOWER(?) LIMIT 1',
+        variables: [Variable.withString(trimmed)],
+        readsFrom: {_db.projects},
+      ).get();
+      return rows.isNotEmpty;
+    }
+  }
+
+  /// Create a new project (AC-01.1 validation: Name, Location, Area > 0, Unique Name)
   Future<ProjectModel> createProject({
     required String name,
     required String location,
@@ -95,8 +134,12 @@ class ProjectsRepository {
     required String userId,
   }) async {
     // Validation rules
-    if (name.trim().isEmpty) {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
       throw ArgumentError('Project Name * is required.');
+    }
+    if (await isProjectNameTaken(trimmedName)) {
+      throw ArgumentError('A project with the name "$trimmedName" already exists. Project names must be unique.');
     }
     if (location.trim().isEmpty) {
       throw ArgumentError('Location * is required.');
@@ -112,7 +155,7 @@ class ProjectsRepository {
     final companion = ProjectsCompanion(
       id: Value(newId),
       code: Value(code),
-      name: Value(name.trim()),
+      name: Value(trimmedName),
       description: Value(description?.trim()),
       location: Value(location.trim()),
       status: Value(status.name),
@@ -141,7 +184,7 @@ class ProjectsRepository {
             action: const Value('CREATE_PROJECT'),
             entityType: const Value('Project'),
             entityId: Value(newId),
-            details: Value('Created project "$name" ($code) in $location.'),
+            details: Value('Created project "$trimmedName" ($code) in $location.'),
             timestamp: Value(DateTime.now()),
           ),
         );
@@ -150,16 +193,24 @@ class ProjectsRepository {
     return created!;
   }
 
-  /// Update existing project details (AC-01.2: Block edits if closed)
+  /// Update existing project details (AC-01.2: Block edits if closed, enforce unique name)
   Future<void> updateProject(ProjectModel project, {required String userId}) async {
     final existing = await getProjectById(project.id);
     if (existing != null && existing.isClosed) {
       throw StateError('Project is closed — financial edits are disabled.');
     }
 
+    final trimmedName = project.name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Project Name is required.');
+    }
+    if (await isProjectNameTaken(trimmedName, excludeProjectId: project.id)) {
+      throw ArgumentError('A project with the name "$trimmedName" already exists. Project names must be unique.');
+    }
+
     await (_db.update(_db.projects)..where((tbl) => tbl.id.equals(project.id))).write(
       ProjectsCompanion(
-        name: Value(project.name),
+        name: Value(trimmedName),
         description: Value(project.description),
         location: Value(project.location),
         status: Value(project.status.name),
@@ -191,26 +242,48 @@ class ProjectsRepository {
         );
   }
 
-  /// Delete project with strict relation checks (Requirement 21)
-  Future<void> deleteProject(String projectId, {required String userId}) async {
-    final plots = await (_db.select(_db.plots)..where((tbl) => tbl.projectId.equals(projectId))).get();
-    if (plots.isNotEmpty) {
-      throw StateError('Cannot delete project: Project contains ${plots.length} mapped plot(s).');
-    }
+  /// Delete project with optional cascade cleanup of child records (Requirement 21 / Admin Override)
+  Future<void> deleteProject(String projectId, {required String userId, bool cascade = false}) async {
+    final prj = await (_db.select(_db.projects)..where((tbl) => tbl.id.equals(projectId))).getSingleOrNull();
+    final projectName = prj?.name ?? projectId;
 
-    final sales = await (_db.select(_db.sales)..where((tbl) => tbl.projectId.equals(projectId))).get();
-    if (sales.isNotEmpty) {
-      throw StateError('Cannot delete project: Project has recorded plot sales.');
-    }
+    if (!cascade) {
+      final plots = await (_db.select(_db.plots)..where((tbl) => tbl.projectId.equals(projectId))).get();
+      if (plots.isNotEmpty) {
+        throw StateError('Cannot delete project: Project contains ${plots.length} mapped plot(s).');
+      }
+      final sales = await (_db.select(_db.sales)..where((tbl) => tbl.projectId.equals(projectId))).get();
+      if (sales.isNotEmpty) {
+        throw StateError('Cannot delete project: Project has recorded plot sales.');
+      }
+      final expenses = await (_db.select(_db.expenses)..where((tbl) => tbl.projectId.equals(projectId))).get();
+      if (expenses.isNotEmpty) {
+        throw StateError('Cannot delete project: Project has recorded expenses.');
+      }
+      final investments = await (_db.select(_db.projectInvestors)..where((tbl) => tbl.projectId.equals(projectId))).get();
+      if (investments.isNotEmpty) {
+        throw StateError('Cannot delete project: Project has active investor capital.');
+      }
+    } else {
+      // 1. Clean up sales transactions & installments
+      final sales = await (_db.select(_db.sales)..where((tbl) => tbl.projectId.equals(projectId))).get();
+      for (final s in sales) {
+        final insts = await (_db.select(_db.installments)..where((tbl) => tbl.saleId.equals(s.id))).get();
+        for (final inst in insts) {
+          await (_db.delete(_db.transactions)..where((tbl) => tbl.installmentId.equals(inst.id))).go();
+          await (_db.delete(_db.installments)..where((tbl) => tbl.id.equals(inst.id))).go();
+        }
+      }
+      await (_db.delete(_db.sales)..where((tbl) => tbl.projectId.equals(projectId))).go();
 
-    final expenses = await (_db.select(_db.expenses)..where((tbl) => tbl.projectId.equals(projectId))).get();
-    if (expenses.isNotEmpty) {
-      throw StateError('Cannot delete project: Project has recorded expenses.');
-    }
+      // 2. Clean up distributions & project investor allocations
+      await (_db.delete(_db.distributions)..where((tbl) => tbl.projectId.equals(projectId))).go();
+      await (_db.delete(_db.projectInvestors)..where((tbl) => tbl.projectId.equals(projectId))).go();
 
-    final investments = await (_db.select(_db.projectInvestors)..where((tbl) => tbl.projectId.equals(projectId))).get();
-    if (investments.isNotEmpty) {
-      throw StateError('Cannot delete project: Project has active investor capital.');
+      // 3. Clean up expenses & plots & purchase agreements
+      await (_db.delete(_db.expenses)..where((tbl) => tbl.projectId.equals(projectId))).go();
+      await (_db.delete(_db.plots)..where((tbl) => tbl.projectId.equals(projectId))).go();
+      await (_db.delete(_db.purchaseAgreements)..where((tbl) => tbl.projectId.equals(projectId))).go();
     }
 
     await (_db.delete(_db.projects)..where((tbl) => tbl.id.equals(projectId))).go();
@@ -223,7 +296,7 @@ class ProjectsRepository {
             action: const Value('DELETE_PROJECT'),
             entityType: const Value('Project'),
             entityId: Value(projectId),
-            details: Value('Deleted project ID $projectId.'),
+            details: Value('Deleted project "$projectName" (ID: $projectId) and all associated records.'),
             timestamp: Value(DateTime.now()),
           ),
         );
