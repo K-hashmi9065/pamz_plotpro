@@ -26,6 +26,7 @@ import '../../investors/presentation/investors_providers.dart';
 import '../../investors/presentation/widgets/investor_agreement_pdf_dialog.dart';
 import '../../investors/presentation/widgets/investor_form_dialog.dart';
 import '../../investors/presentation/widgets/investor_withdrawal_history_dialog.dart';
+import '../../investors/presentation/widgets/investor_withdrawal_selection_dialog.dart';
 import '../../investors/presentation/widgets/project_investment_dialog.dart';
 import '../../landowners/presentation/landowners_providers.dart';
 import '../../landowners/presentation/widgets/agreement_pdf_dialog.dart';
@@ -125,11 +126,12 @@ class ProjectDetailScreen extends ConsumerWidget {
       context: context,
       barrierDismissible: true,
       builder: (context) => Dialog(
+        clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
           side: const BorderSide(color: AppColors.border),
         ),
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.background,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: SizedBox(
           width: 1180,
@@ -459,6 +461,8 @@ class ProjectDetailScreen extends ConsumerWidget {
                   length: 7,
                   initialIndex: selectedTabIndex,
                   child: TabBar(
+                    dividerColor: AppColors.border,
+                    dividerHeight: 1,
                     onTap: (index) =>
                         ref
                                 .read(
@@ -502,7 +506,6 @@ class ProjectDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const Divider(height: 1),
                 const SizedBox(height: 14),
 
                 // Tab View Contents with Smooth Animation
@@ -618,6 +621,14 @@ class _OverviewTab extends ConsumerWidget {
     final pnlListAsync = ref.watch(projectProfitLossStreamProvider);
     final expensesAsync = ref.watch(projectExpensesStreamProvider(project.id));
 
+    final totalKatta = LandUnitConverter.sqFtToKatta(project.landAreaSqFt);
+    final totalKattaStr = totalKatta == totalKatta.roundToDouble()
+        ? totalKatta.toInt().toString()
+        : double.parse(totalKatta.toStringAsFixed(1))
+              .toString()
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
+
     return SingleChildScrollView(
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -639,7 +650,10 @@ class _OverviewTab extends ConsumerWidget {
             _infoRow('Project Name:', project.name),
             _infoRow('Location:', project.location),
             _infoRow('Landowner:', project.landownerName ?? 'Not Assigned'),
-            _infoRow('Total Land Purchased:', project.formattedArea),
+            _infoRow(
+              'Total Land Purchased:',
+              '${CalculationEngine.indianNumberFormat.format(project.landAreaSqFt.round())} Sq. Ft. ($totalKattaStr Kattha)',
+            ),
 
             plotsAsync.when(
               data: (plots) {
@@ -800,7 +814,7 @@ class _OverviewTab extends ConsumerWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 240,
+            width: 320,
             child: Text(label, style: AppTypography.secondary),
           ),
           Expanded(
@@ -1364,51 +1378,21 @@ class _InvestorsTab extends ConsumerWidget {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Select Investor for Withdrawal',
-          style: AppTypography.cardTitle,
-        ),
-        content: SizedBox(
-          width: 440,
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: resolvedPayouts.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (ctx, index) {
-              final p = resolvedPayouts[index];
-              final totalAmount = p.capitalInvested + p.allocatedProfitShare;
-              final available = (totalAmount - p.payoutsDisbursed).clamp(0.0, double.infinity);
+    final options = resolvedPayouts.map((p) {
+      return InvestorWithdrawalOption(
+        investorName: p.investorName,
+        projectName: project.name,
+        projectLocation: project.location,
+        capitalInvested: p.capitalInvested,
+        remainingPayoutBalance: p.remainingPayoutBalance,
+        payout: p,
+      );
+    }).toList();
 
-              return ListTile(
-                title: Text(
-                  p.investorName,
-                  style: AppTypography.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  'Total: ${CalculationEngine.formatCurrency(totalAmount)} | Withdrawn: ${CalculationEngine.formatCurrency(p.payoutsDisbursed)} | Available: ${CalculationEngine.formatCurrency(available)}',
-                  style: AppTypography.secondary.copyWith(fontSize: 12),
-                ),
-                trailing: const Icon(Icons.chevron_right, size: 18),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  PayoutDisbursementDialog.show(context, payout: p);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
+    InvestorWithdrawalSelectionDialog.show(
+      context: context,
+      options: options,
+      preselectedInvestorName: null,
     );
   }
 

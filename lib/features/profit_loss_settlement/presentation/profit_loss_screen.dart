@@ -44,7 +44,7 @@ class ProfitLossScreen extends ConsumerWidget {
 
     final tabs = [
       'Project P&L Summaries',
-      'Investor ROI Settlements',
+      'Investor ROR Settlements',
     ];
 
     return Column(
@@ -53,7 +53,7 @@ class ProfitLossScreen extends ConsumerWidget {
         const PageHeader(
           title: 'Profit & Loss / Investor Payout Ledger',
           subtitle:
-              'Analyze project profit margins, audit realized vs booked profit, and manage investor ROI settlement distributions.',
+              'Analyze project profit margins, audit realized vs booked profit, and manage investor ROR settlement distributions.',
           icon: Icons.trending_up_outlined,
         ),
         const SizedBox(height: 16),
@@ -85,7 +85,7 @@ class ProfitLossScreen extends ConsumerWidget {
               child: _MetricCard(
                 title: 'Distributable Profit Pool',
                 amountDisplay: CalculationEngine.formatCurrency(totalDistributable),
-                subtitle: 'Net profit pool for investor ROI share',
+                subtitle: 'Net profit pool for investor ROR share',
                 icon: Icons.payments_outlined,
                 color: AppColors.primary,
               ),
@@ -383,7 +383,7 @@ class _InvestorPayoutsTableView extends ConsumerWidget {
                   DataTableColumn(label: 'Capital Invested', width: 150),
                   DataTableColumn(label: 'Ownership %', width: 130),
                   DataTableColumn(label: 'Profit Share', width: 180),
-                  DataTableColumn(label: 'ROI %', width: 130),
+                  DataTableColumn(label: 'ROR %', width: 130),
                   DataTableColumn(label: 'Payouts Disbursed', width: 160),
                   DataTableColumn(label: 'Remaining Balance', width: 180),
                   DataTableColumn(label: 'Actions', width: 120, alignment: Alignment.center),
@@ -427,17 +427,17 @@ class _InvestorPayoutsTableView extends ConsumerWidget {
                     Row(
                       children: [
                         Text(
-                          '${p.roiPercent.toStringAsFixed(2)}%',
+                          '${p.rorPercent.toStringAsFixed(2)}%',
                           style: AppTypography.tableCell.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: p.roiPercent >= 0 ? AppColors.successText : AppColors.dangerText,
+                            color: p.rorPercent >= 0 ? AppColors.successText : AppColors.dangerText,
                           ),
                         ),
                         const SizedBox(width: 4),
                         FormulaInfoButton(
-                          figureTitle: 'Investor ROI %',
+                          figureTitle: 'Investor ROR %',
                           plainWordsFormula:
-                              'ROI % = (Investor Profit Share ÷ Capital Invested) × 100',
+                              'ROR % = (Investor Profit Share ÷ Capital Invested) × 100',
                           terms: [
                             FormulaTermDefinition(
                               term: 'Investor Profit Share',
@@ -450,7 +450,7 @@ class _InvestorPayoutsTableView extends ConsumerWidget {
                               valueDisplay: CalculationEngine.formatCurrency(p.capitalInvested),
                             ),
                           ],
-                          calculatedResultDisplay: '${p.roiPercent.toStringAsFixed(2)}%',
+                          calculatedResultDisplay: '${p.rorPercent.toStringAsFixed(2)}%',
                         ),
                       ],
                     ),

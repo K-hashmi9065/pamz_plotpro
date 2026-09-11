@@ -83,5 +83,14 @@ void main() {
       final totalPrice = totalKattha * ratePerKattha;
       expect(totalPrice, equals(57600000.0));
     });
+
+    test('formatLandMeasurement outputs Kattha string for Dimensions mode', () {
+      final formatted = LandUnitConverter.formatLandMeasurement(
+        areaSqFt: 12240.0,
+        measurementUnit: 'Dimensions (L × B in Ft & In)',
+        displayArea: 10.88,
+      );
+      expect(formatted, equals('10.88 Kattha'));
+    });
   });
 }

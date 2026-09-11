@@ -21,6 +21,7 @@ import 'investors_providers.dart';
 import 'widgets/investor_agreement_pdf_dialog.dart';
 import 'widgets/investor_form_dialog.dart';
 import 'widgets/investor_profile_dialog.dart';
+import 'widgets/investor_withdrawal_selection_dialog.dart';
 import 'widgets/project_investment_dialog.dart';
 
 final investorsSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
@@ -91,68 +92,28 @@ class InvestorsListScreen extends ConsumerWidget {
       return;
     }
 
-    // Show selection dialog
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              preselectedInvestor != null
-                  ? 'Select Project for Withdrawal (${preselectedInvestor.name})'
-                  : 'Select Investor & Project for Withdrawal',
-              style: AppTypography.cardTitle,
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: 480,
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: relevantInvestments.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (_, idx) {
-              final pi = relevantInvestments[idx];
-              final inv = investors.where((i) => i.id == pi.investorId).firstOrNull;
-              final proj = projects.where((p) => p.id == pi.projectId).firstOrNull;
-              final payout = buildPayoutModel(pi);
-              final pName = proj?.name ?? 'Project #${pi.projectId}';
-              final invName = inv?.name ?? 'Investor';
+    // Build withdrawal options with full search attributes
+    final options = relevantInvestments.map((pi) {
+      final inv = investors.where((i) => i.id == pi.investorId).firstOrNull;
+      final proj = projects.where((p) => p.id == pi.projectId).firstOrNull;
+      final payout = buildPayoutModel(pi);
 
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  child: const Icon(Icons.person, color: AppColors.primary, size: 20),
-                ),
-                title: Text('$invName • $pName', style: AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  'Capital: ${CalculationEngine.formatCurrency(payout.capitalInvested)}  |  Available: ${CalculationEngine.formatCurrency(payout.remainingPayoutBalance)}',
-                  style: AppTypography.secondary.copyWith(fontSize: 12),
-                ),
-                trailing: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    minimumSize: Size.zero,
-                  ),
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    PayoutDisbursementDialog.show(context, payout: payout);
-                  },
-                  child: const Text('Withdraw', style: TextStyle(fontSize: 12)),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
+      return InvestorWithdrawalOption(
+        investorName: inv?.name ?? 'Investor',
+        projectName: proj?.name ?? 'Project #${pi.projectId}',
+        projectLocation: proj?.location,
+        phone: inv?.phone,
+        capitalInvested: payout.capitalInvested,
+        remainingPayoutBalance: payout.remainingPayoutBalance,
+        payout: payout,
+      );
+    }).toList();
+
+    // Show searchable selection dialog
+    InvestorWithdrawalSelectionDialog.show(
+      context: context,
+      options: options,
+      preselectedInvestorName: preselectedInvestor?.name,
     );
   }
 

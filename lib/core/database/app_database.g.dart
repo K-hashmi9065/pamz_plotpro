@@ -940,6 +940,7 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _descriptionMeta = const VerificationMeta(
     'description',
@@ -1008,7 +1009,7 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('Katta'),
+    defaultValue: const Constant('Kattha'),
   );
   static const VerificationMeta _displayAreaMeta = const VerificationMeta(
     'displayArea',
@@ -1638,10 +1639,8 @@ class Project extends DataClass implements Insertable<Project> {
       dhurValue: data.dhurValue.present ? data.dhurValue.value : this.dhurValue,
       lengthFt: data.lengthFt.present ? data.lengthFt.value : this.lengthFt,
       lengthIn: data.lengthIn.present ? data.lengthIn.value : this.lengthIn,
-      breadthFt:
-          data.breadthFt.present ? data.breadthFt.value : this.breadthFt,
-      breadthIn:
-          data.breadthIn.present ? data.breadthIn.value : this.breadthIn,
+      breadthFt: data.breadthFt.present ? data.breadthFt.value : this.breadthFt,
+      breadthIn: data.breadthIn.present ? data.breadthIn.value : this.breadthIn,
       purchasePrice: data.purchasePrice.present
           ? data.purchasePrice.value
           : this.purchasePrice,
@@ -3971,7 +3970,7 @@ class $PlotsTable extends Plots with TableInfo<$PlotsTable, Plot> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('Katta'),
+    defaultValue: const Constant('Kattha'),
   );
   static const VerificationMeta _displayAreaMeta = const VerificationMeta(
     'displayArea',
@@ -4410,6 +4409,18 @@ class Plot extends DataClass implements Insertable<Plot> {
       dhurValue: dhurValue == null && nullToAbsent
           ? const Value.absent()
           : Value(dhurValue),
+      lengthFt: lengthFt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lengthFt),
+      lengthIn: lengthIn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lengthIn),
+      breadthFt: breadthFt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(breadthFt),
+      breadthIn: breadthIn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(breadthIn),
       allocatedCost: Value(allocatedCost),
       expectedPrice: Value(expectedPrice),
       status: Value(status),
@@ -4431,6 +4442,10 @@ class Plot extends DataClass implements Insertable<Plot> {
       displayArea: serializer.fromJson<double?>(json['displayArea']),
       kattaValue: serializer.fromJson<double?>(json['kattaValue']),
       dhurValue: serializer.fromJson<double?>(json['dhurValue']),
+      lengthFt: serializer.fromJson<double?>(json['lengthFt']),
+      lengthIn: serializer.fromJson<double?>(json['lengthIn']),
+      breadthFt: serializer.fromJson<double?>(json['breadthFt']),
+      breadthIn: serializer.fromJson<double?>(json['breadthIn']),
       allocatedCost: serializer.fromJson<double>(json['allocatedCost']),
       expectedPrice: serializer.fromJson<double>(json['expectedPrice']),
       status: serializer.fromJson<String>(json['status']),
@@ -4449,6 +4464,10 @@ class Plot extends DataClass implements Insertable<Plot> {
       'displayArea': serializer.toJson<double?>(displayArea),
       'kattaValue': serializer.toJson<double?>(kattaValue),
       'dhurValue': serializer.toJson<double?>(dhurValue),
+      'lengthFt': serializer.toJson<double?>(lengthFt),
+      'lengthIn': serializer.toJson<double?>(lengthIn),
+      'breadthFt': serializer.toJson<double?>(breadthFt),
+      'breadthIn': serializer.toJson<double?>(breadthIn),
       'allocatedCost': serializer.toJson<double>(allocatedCost),
       'expectedPrice': serializer.toJson<double>(expectedPrice),
       'status': serializer.toJson<String>(status),
@@ -4465,6 +4484,10 @@ class Plot extends DataClass implements Insertable<Plot> {
     Value<double?> displayArea = const Value.absent(),
     Value<double?> kattaValue = const Value.absent(),
     Value<double?> dhurValue = const Value.absent(),
+    Value<double?> lengthFt = const Value.absent(),
+    Value<double?> lengthIn = const Value.absent(),
+    Value<double?> breadthFt = const Value.absent(),
+    Value<double?> breadthIn = const Value.absent(),
     double? allocatedCost,
     double? expectedPrice,
     String? status,
@@ -4478,6 +4501,10 @@ class Plot extends DataClass implements Insertable<Plot> {
     displayArea: displayArea.present ? displayArea.value : this.displayArea,
     kattaValue: kattaValue.present ? kattaValue.value : this.kattaValue,
     dhurValue: dhurValue.present ? dhurValue.value : this.dhurValue,
+    lengthFt: lengthFt.present ? lengthFt.value : this.lengthFt,
+    lengthIn: lengthIn.present ? lengthIn.value : this.lengthIn,
+    breadthFt: breadthFt.present ? breadthFt.value : this.breadthFt,
+    breadthIn: breadthIn.present ? breadthIn.value : this.breadthIn,
     allocatedCost: allocatedCost ?? this.allocatedCost,
     expectedPrice: expectedPrice ?? this.expectedPrice,
     status: status ?? this.status,
@@ -4501,6 +4528,10 @@ class Plot extends DataClass implements Insertable<Plot> {
           ? data.kattaValue.value
           : this.kattaValue,
       dhurValue: data.dhurValue.present ? data.dhurValue.value : this.dhurValue,
+      lengthFt: data.lengthFt.present ? data.lengthFt.value : this.lengthFt,
+      lengthIn: data.lengthIn.present ? data.lengthIn.value : this.lengthIn,
+      breadthFt: data.breadthFt.present ? data.breadthFt.value : this.breadthFt,
+      breadthIn: data.breadthIn.present ? data.breadthIn.value : this.breadthIn,
       allocatedCost: data.allocatedCost.present
           ? data.allocatedCost.value
           : this.allocatedCost,
@@ -4523,6 +4554,10 @@ class Plot extends DataClass implements Insertable<Plot> {
           ..write('displayArea: $displayArea, ')
           ..write('kattaValue: $kattaValue, ')
           ..write('dhurValue: $dhurValue, ')
+          ..write('lengthFt: $lengthFt, ')
+          ..write('lengthIn: $lengthIn, ')
+          ..write('breadthFt: $breadthFt, ')
+          ..write('breadthIn: $breadthIn, ')
           ..write('allocatedCost: $allocatedCost, ')
           ..write('expectedPrice: $expectedPrice, ')
           ..write('status: $status, ')
@@ -4541,6 +4576,10 @@ class Plot extends DataClass implements Insertable<Plot> {
     displayArea,
     kattaValue,
     dhurValue,
+    lengthFt,
+    lengthIn,
+    breadthFt,
+    breadthIn,
     allocatedCost,
     expectedPrice,
     status,
@@ -4558,6 +4597,10 @@ class Plot extends DataClass implements Insertable<Plot> {
           other.displayArea == this.displayArea &&
           other.kattaValue == this.kattaValue &&
           other.dhurValue == this.dhurValue &&
+          other.lengthFt == this.lengthFt &&
+          other.lengthIn == this.lengthIn &&
+          other.breadthFt == this.breadthFt &&
+          other.breadthIn == this.breadthIn &&
           other.allocatedCost == this.allocatedCost &&
           other.expectedPrice == this.expectedPrice &&
           other.status == this.status &&
@@ -4772,6 +4815,10 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
           ..write('displayArea: $displayArea, ')
           ..write('kattaValue: $kattaValue, ')
           ..write('dhurValue: $dhurValue, ')
+          ..write('lengthFt: $lengthFt, ')
+          ..write('lengthIn: $lengthIn, ')
+          ..write('breadthFt: $breadthFt, ')
+          ..write('breadthIn: $breadthIn, ')
           ..write('allocatedCost: $allocatedCost, ')
           ..write('expectedPrice: $expectedPrice, ')
           ..write('status: $status, ')
@@ -8881,6 +8928,10 @@ typedef $$ProjectsTableCreateCompanionBuilder =
       Value<double?> displayArea,
       Value<double?> kattaValue,
       Value<double?> dhurValue,
+      Value<double?> lengthFt,
+      Value<double?> lengthIn,
+      Value<double?> breadthFt,
+      Value<double?> breadthIn,
       Value<double> purchasePrice,
       Value<double> actualCost,
       Value<DateTime> createdAt,
@@ -8900,6 +8951,10 @@ typedef $$ProjectsTableUpdateCompanionBuilder =
       Value<double?> displayArea,
       Value<double?> kattaValue,
       Value<double?> dhurValue,
+      Value<double?> lengthFt,
+      Value<double?> lengthIn,
+      Value<double?> breadthFt,
+      Value<double?> breadthIn,
       Value<double> purchasePrice,
       Value<double> actualCost,
       Value<DateTime> createdAt,
@@ -9131,6 +9186,26 @@ class $$ProjectsTableFilterComposer
 
   ColumnFilters<double> get dhurValue => $composableBuilder(
     column: $table.dhurValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lengthFt => $composableBuilder(
+    column: $table.lengthFt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lengthIn => $composableBuilder(
+    column: $table.lengthIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get breadthFt => $composableBuilder(
+    column: $table.breadthFt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get breadthIn => $composableBuilder(
+    column: $table.breadthIn,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9412,6 +9487,26 @@ class $$ProjectsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get lengthFt => $composableBuilder(
+    column: $table.lengthFt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lengthIn => $composableBuilder(
+    column: $table.lengthIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get breadthFt => $composableBuilder(
+    column: $table.breadthFt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get breadthIn => $composableBuilder(
+    column: $table.breadthIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get purchasePrice => $composableBuilder(
     column: $table.purchasePrice,
     builder: (column) => ColumnOrderings(column),
@@ -9502,6 +9597,18 @@ class $$ProjectsTableAnnotationComposer
 
   GeneratedColumn<double> get dhurValue =>
       $composableBuilder(column: $table.dhurValue, builder: (column) => column);
+
+  GeneratedColumn<double> get lengthFt =>
+      $composableBuilder(column: $table.lengthFt, builder: (column) => column);
+
+  GeneratedColumn<double> get lengthIn =>
+      $composableBuilder(column: $table.lengthIn, builder: (column) => column);
+
+  GeneratedColumn<double> get breadthFt =>
+      $composableBuilder(column: $table.breadthFt, builder: (column) => column);
+
+  GeneratedColumn<double> get breadthIn =>
+      $composableBuilder(column: $table.breadthIn, builder: (column) => column);
 
   GeneratedColumn<double> get purchasePrice => $composableBuilder(
     column: $table.purchasePrice,
@@ -9765,6 +9872,10 @@ class $$ProjectsTableTableManager
                 Value<double?> displayArea = const Value.absent(),
                 Value<double?> kattaValue = const Value.absent(),
                 Value<double?> dhurValue = const Value.absent(),
+                Value<double?> lengthFt = const Value.absent(),
+                Value<double?> lengthIn = const Value.absent(),
+                Value<double?> breadthFt = const Value.absent(),
+                Value<double?> breadthIn = const Value.absent(),
                 Value<double> purchasePrice = const Value.absent(),
                 Value<double> actualCost = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -9782,6 +9893,10 @@ class $$ProjectsTableTableManager
                 displayArea: displayArea,
                 kattaValue: kattaValue,
                 dhurValue: dhurValue,
+                lengthFt: lengthFt,
+                lengthIn: lengthIn,
+                breadthFt: breadthFt,
+                breadthIn: breadthIn,
                 purchasePrice: purchasePrice,
                 actualCost: actualCost,
                 createdAt: createdAt,
@@ -9801,6 +9916,10 @@ class $$ProjectsTableTableManager
                 Value<double?> displayArea = const Value.absent(),
                 Value<double?> kattaValue = const Value.absent(),
                 Value<double?> dhurValue = const Value.absent(),
+                Value<double?> lengthFt = const Value.absent(),
+                Value<double?> lengthIn = const Value.absent(),
+                Value<double?> breadthFt = const Value.absent(),
+                Value<double?> breadthIn = const Value.absent(),
                 Value<double> purchasePrice = const Value.absent(),
                 Value<double> actualCost = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -9818,6 +9937,10 @@ class $$ProjectsTableTableManager
                 displayArea: displayArea,
                 kattaValue: kattaValue,
                 dhurValue: dhurValue,
+                lengthFt: lengthFt,
+                lengthIn: lengthIn,
+                breadthFt: breadthFt,
+                breadthIn: breadthIn,
                 purchasePrice: purchasePrice,
                 actualCost: actualCost,
                 createdAt: createdAt,
@@ -11942,6 +12065,10 @@ typedef $$PlotsTableCreateCompanionBuilder =
       Value<double?> displayArea,
       Value<double?> kattaValue,
       Value<double?> dhurValue,
+      Value<double?> lengthFt,
+      Value<double?> lengthIn,
+      Value<double?> breadthFt,
+      Value<double?> breadthIn,
       Value<double> allocatedCost,
       Value<double> expectedPrice,
       required String status,
@@ -11958,6 +12085,10 @@ typedef $$PlotsTableUpdateCompanionBuilder =
       Value<double?> displayArea,
       Value<double?> kattaValue,
       Value<double?> dhurValue,
+      Value<double?> lengthFt,
+      Value<double?> lengthIn,
+      Value<double?> breadthFt,
+      Value<double?> breadthIn,
       Value<double> allocatedCost,
       Value<double> expectedPrice,
       Value<String> status,
@@ -12027,6 +12158,26 @@ class $$PlotsTableFilterComposer extends Composer<_$AppDatabase, $PlotsTable> {
 
   ColumnFilters<double> get dhurValue => $composableBuilder(
     column: $table.dhurValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lengthFt => $composableBuilder(
+    column: $table.lengthFt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get lengthIn => $composableBuilder(
+    column: $table.lengthIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get breadthFt => $composableBuilder(
+    column: $table.breadthFt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get breadthIn => $composableBuilder(
+    column: $table.breadthIn,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12118,6 +12269,26 @@ class $$PlotsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get lengthFt => $composableBuilder(
+    column: $table.lengthFt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get lengthIn => $composableBuilder(
+    column: $table.lengthIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get breadthFt => $composableBuilder(
+    column: $table.breadthFt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get breadthIn => $composableBuilder(
+    column: $table.breadthIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get allocatedCost => $composableBuilder(
     column: $table.allocatedCost,
     builder: (column) => ColumnOrderings(column),
@@ -12200,6 +12371,18 @@ class $$PlotsTableAnnotationComposer
   GeneratedColumn<double> get dhurValue =>
       $composableBuilder(column: $table.dhurValue, builder: (column) => column);
 
+  GeneratedColumn<double> get lengthFt =>
+      $composableBuilder(column: $table.lengthFt, builder: (column) => column);
+
+  GeneratedColumn<double> get lengthIn =>
+      $composableBuilder(column: $table.lengthIn, builder: (column) => column);
+
+  GeneratedColumn<double> get breadthFt =>
+      $composableBuilder(column: $table.breadthFt, builder: (column) => column);
+
+  GeneratedColumn<double> get breadthIn =>
+      $composableBuilder(column: $table.breadthIn, builder: (column) => column);
+
   GeneratedColumn<double> get allocatedCost => $composableBuilder(
     column: $table.allocatedCost,
     builder: (column) => column,
@@ -12276,6 +12459,10 @@ class $$PlotsTableTableManager
                 Value<double?> displayArea = const Value.absent(),
                 Value<double?> kattaValue = const Value.absent(),
                 Value<double?> dhurValue = const Value.absent(),
+                Value<double?> lengthFt = const Value.absent(),
+                Value<double?> lengthIn = const Value.absent(),
+                Value<double?> breadthFt = const Value.absent(),
+                Value<double?> breadthIn = const Value.absent(),
                 Value<double> allocatedCost = const Value.absent(),
                 Value<double> expectedPrice = const Value.absent(),
                 Value<String> status = const Value.absent(),
@@ -12290,6 +12477,10 @@ class $$PlotsTableTableManager
                 displayArea: displayArea,
                 kattaValue: kattaValue,
                 dhurValue: dhurValue,
+                lengthFt: lengthFt,
+                lengthIn: lengthIn,
+                breadthFt: breadthFt,
+                breadthIn: breadthIn,
                 allocatedCost: allocatedCost,
                 expectedPrice: expectedPrice,
                 status: status,
@@ -12306,6 +12497,10 @@ class $$PlotsTableTableManager
                 Value<double?> displayArea = const Value.absent(),
                 Value<double?> kattaValue = const Value.absent(),
                 Value<double?> dhurValue = const Value.absent(),
+                Value<double?> lengthFt = const Value.absent(),
+                Value<double?> lengthIn = const Value.absent(),
+                Value<double?> breadthFt = const Value.absent(),
+                Value<double?> breadthIn = const Value.absent(),
                 Value<double> allocatedCost = const Value.absent(),
                 Value<double> expectedPrice = const Value.absent(),
                 required String status,
@@ -12320,6 +12515,10 @@ class $$PlotsTableTableManager
                 displayArea: displayArea,
                 kattaValue: kattaValue,
                 dhurValue: dhurValue,
+                lengthFt: lengthFt,
+                lengthIn: lengthIn,
+                breadthFt: breadthFt,
+                breadthIn: breadthIn,
                 allocatedCost: allocatedCost,
                 expectedPrice: expectedPrice,
                 status: status,

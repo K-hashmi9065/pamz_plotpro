@@ -220,56 +220,77 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   // Quick Action Buttons & Plot Inventory Progress
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Quick Actions Box
-                      Expanded(
-                        flex: 5,
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Quick Actions & Workflows', style: AppTypography.cardTitle),
-                              const SizedBox(height: 14),
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => ProjectFormDialog.show(context),
-                                    icon: const Icon(Icons.add_business, size: 18),
-                                    label: const Text('Add Project'),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Quick Actions Box
+                        Expanded(
+                          flex: 5,
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Quick Actions & Workflows', style: AppTypography.cardTitle),
+                                const SizedBox(height: 16),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              onPressed: () => ProjectFormDialog.show(context),
+                                              icon: const Icon(Icons.add_business, size: 18),
+                                              label: const Text('Add Project'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                                              onPressed: () => SaleAgreementDialog.show(context),
+                                              icon: const Icon(Icons.handshake_outlined, size: 18),
+                                              label: const Text('New Sale Agreement'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              onPressed: () => PaymentRecordDialog.show(context),
+                                              icon: const Icon(Icons.add_card, size: 18),
+                                              label: const Text('Record Payment'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              onPressed: () => context.go(AppRoutes.profitLoss),
+                                              icon: const Icon(Icons.trending_up, size: 18),
+                                              label: const Text('View P&L Ledger'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-                                    onPressed: () => SaleAgreementDialog.show(context),
-                                    icon: const Icon(Icons.handshake_outlined, size: 18),
-                                    label: const Text('New Sale Agreement'),
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: () => PaymentRecordDialog.show(context),
-                                    icon: const Icon(Icons.add_card, size: 18),
-                                    label: const Text('Record Payment'),
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: () => context.go(AppRoutes.profitLoss),
-                                    icon: const Icon(Icons.trending_up, size: 18),
-                                    label: const Text('View P&L Ledger'),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
+                        const SizedBox(width: 16),
 
                       // Plot Inventory Breakdown Card
                       Expanded(
@@ -354,8 +375,9 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                ],
-              );
+                ),
+              ],
+            );
             },
           ),
           const SizedBox(height: 24),

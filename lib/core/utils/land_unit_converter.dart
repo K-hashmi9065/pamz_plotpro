@@ -229,6 +229,8 @@ class LandUnitConverter {
         return sqFt / sqFtPerBigha;
       case 'Kattha':
       case 'Katta':
+      case 'Dimensions':
+      case 'Dimensions (L × B in Ft & In)':
         return sqFt / sqFtPerKatta;
       case 'Dhur':
         return sqFt / sqFtPerDhur;
@@ -238,6 +240,9 @@ class LandUnitConverter {
         return sqFt / sqFtPerSqMeter;
       case 'Square Feet':
       default:
+        if (unit.toLowerCase().contains('dimension')) {
+          return sqFt / sqFtPerKatta;
+        }
         return sqFt;
     }
   }
@@ -270,22 +275,38 @@ class LandUnitConverter {
           ).toString().replaceAll(RegExp(r'\.0+$'), '');
 
     switch (measurementUnit) {
+      case 'Square Feet':
+      case 'Sq Ft':
+      case 'Sq. Ft.':
+        return '$valStr Sq Ft';
+      case 'Dimensions':
+      case 'Dimensions (L × B in Ft & In)':
+        return '$valStr Kattha';
+      case 'Square Yards':
+      case 'Sq Yards':
+      case 'Sq Yds':
+        return '$valStr Sq Yds';
+      case 'Square Meter':
+      case 'Sq Meter':
+      case 'Sq M':
+        return '$valStr Sq M';
       case 'Kattha':
       case 'Katta':
         return '$valStr Kattha';
       case 'Dhur':
         return '$valStr Dhur';
       case 'Decimal':
+      case 'Dec':
         return '$valStr Decimal';
       case 'Acre':
         return '$valStr Acre';
       case 'Bigha':
         return '$valStr Bigha';
-      case 'Square Meter':
-        return '$valStr Sq M';
-      case 'Square Feet':
       default:
-        return '$valStr Kattha';
+        if (measurementUnit.toLowerCase().contains('dimension')) {
+          return '$valStr Kattha';
+        }
+        return '$valStr $measurementUnit';
     }
   }
 

@@ -134,7 +134,7 @@ class HelpTopicsData {
       title: 'Investor Capital & Equity Tracking',
       category: 'Investors (Admin Only)',
       description:
-          'Track investor equity capital contributions per project and calculate automated ROI distributions.',
+          'Track investor equity capital contributions per project and calculate automated ROR (Rate of Return) distributions.',
       steps:
           '1. Go to Investors screen.\n2. Click "+ Record Investment".\n3. Link investor to project, enter capital amount, and upload investment agreement.\n4. Equity % auto-calculates.',
       whyItMatters:
@@ -143,12 +143,12 @@ class HelpTopicsData {
     ),
     HelpTopic(
       id: 'pnl_settlement',
-      title: 'Profit & Loss & ROI Settlement',
+      title: 'Profit & Loss & ROR Settlement',
       category: 'Finance (Admin Only)',
       description:
           'Audit gross project profit margins and execute investor profit disbursements.',
       steps:
-          '1. Open Profit & Loss screen.\n2. Review Gross Project Profit (Booked Sales - Land & Capitalized Cost).\n3. Switch to Investor ROI Settlements tab.\n4. Click "Disburse" to process investor payouts.',
+          '1. Open Profit & Loss screen.\n2. Review Gross Project Profit (Booked Sales - Land & Capitalized Cost).\n3. Switch to Investor ROR Settlements tab.\n4. Click "Disburse" to process investor payouts.',
       whyItMatters:
           'Ensures mathematically verifiable payout calculations based on equity share.',
       adminOnly: true,

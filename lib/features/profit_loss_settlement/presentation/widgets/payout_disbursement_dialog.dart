@@ -152,7 +152,7 @@ class _PayoutDisbursementDialogState extends ConsumerState<PayoutDisbursementDia
                       style: AppTypography.secondary,
                     ),
                     Text(
-                      'Profit Share: ${CalculationEngine.formatCurrency(p.allocatedProfitShare)} (ROI: ${p.roiPercent.toStringAsFixed(2)}%)',
+                      'Profit Share: ${CalculationEngine.formatCurrency(p.allocatedProfitShare)} (ROR: ${p.rorPercent.toStringAsFixed(2)}%)',
                       style: AppTypography.secondary.copyWith(color: AppColors.successText),
                     ),
                     Text(
