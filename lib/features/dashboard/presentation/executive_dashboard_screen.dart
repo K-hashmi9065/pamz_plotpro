@@ -198,9 +198,9 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                       const SizedBox(width: 14),
                       Expanded(
                         child: _ExecutiveMetricCard(
-                          title: 'Buyer Dues Receivable',
+                          title: 'Customer Dues Receivable',
                           amountDisplay: CalculationEngine.formatCurrency(summary.totalReceivables),
-                          subtitle: 'Outstanding buyer installments',
+                          subtitle: 'Outstanding customer installments',
                           icon: Icons.call_received_outlined,
                           color: AppColors.warningText,
                         ),
@@ -463,47 +463,71 @@ class _ExecutiveMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: color.withAlpha(25),
-              borderRadius: BorderRadius.circular(8),
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
             ),
-            child: Icon(icon, color: color, size: 24),
+            alignment: Alignment.center,
+            child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: AppTypography.secondary.copyWith(fontSize: 12)),
-                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: AppTypography.secondary.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 5),
                 Row(
                   children: [
-                    Text(
-                      amountDisplay,
-                      style: AppTypography.amountMedium.copyWith(
-                        fontSize: 18,
-                        color: color,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        amountDisplay,
+                        style: AppTypography.amountLarge.copyWith(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (formulaWidget != null) ...[
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       formulaWidget!,
                     ],
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(subtitle, style: AppTypography.secondary.copyWith(fontSize: 11)),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: AppTypography.caption.copyWith(
+                    fontSize: 11.5,
+                    color: AppColors.textMuted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -520,15 +544,15 @@ Widget _miniLandStat(String label, double sqFt, {Color? color}) {
       : double.parse(totalKatta.toStringAsFixed(1)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
   return Column(
     children: [
-      Text(label, style: AppTypography.secondary.copyWith(fontSize: 10)),
+      Text(label, style: AppTypography.secondary.copyWith(fontSize: 10, color: AppColors.textMuted)),
       const SizedBox(height: 2),
       Text(
         '${CalculationEngine.indianNumberFormat.format(sqFt.round())} Sq.Ft.',
-        style: AppTypography.body.copyWith(fontSize: 11, fontWeight: FontWeight.bold, color: color ?? AppColors.textPrimary),
+        style: AppTypography.body.copyWith(fontSize: 11.5, fontWeight: FontWeight.w700, color: color ?? AppColors.textPrimary),
       ),
       Text(
         '($kattaStr Kattha)',
-        style: AppTypography.secondary.copyWith(fontSize: 10, color: AppColors.textMuted),
+        style: AppTypography.caption.copyWith(fontSize: 10, color: AppColors.textMuted),
       ),
     ],
   );
@@ -544,11 +568,12 @@ class _ProjectPortfolioCard extends ConsumerWidget {
     final plotsAsync = ref.watch(projectPlotsStreamProvider(proj.id));
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,7 +584,7 @@ class _ProjectPortfolioCard extends ConsumerWidget {
               Expanded(
                 child: Text(
                   proj.name,
-                  style: AppTypography.cardTitle.copyWith(fontSize: 15),
+                  style: AppTypography.cardTitle.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -569,12 +594,25 @@ class _ProjectPortfolioCard extends ConsumerWidget {
                 type: proj.status == ProjectStatus.active
                     ? BadgeType.success
                     : BadgeType.info,
+                showDot: true,
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text('Location: ${proj.location}', style: AppTypography.secondary.copyWith(fontSize: 12)),
-          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  proj.location,
+                  style: AppTypography.secondary.copyWith(fontSize: 12, color: AppColors.textSecondary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
 
           plotsAsync.when(
             data: (plots) {
@@ -639,13 +677,14 @@ class _ProjectPortfolioCard extends ConsumerWidget {
           ),
 
           const Spacer(),
+          const Divider(height: 16, color: AppColors.borderLight),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Actual Land Cost', style: AppTypography.secondary.copyWith(fontSize: 11)),
+                  Text('Actual Land Cost', style: AppTypography.caption.copyWith(fontSize: 10.5, color: AppColors.textMuted)),
                   Text(
                     CalculationEngine.formatCurrency(proj.actualCost),
                     style: AppTypography.amountMedium.copyWith(fontSize: 14),
@@ -656,20 +695,20 @@ class _ProjectPortfolioCard extends ConsumerWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 onPressed: () => ProjectDetailScreen.showAsDialog(context, proj.id),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 15),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 14),
                 label: const Text(
                   'View Project',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
+                    letterSpacing: 0.1,
                   ),
                 ),
               ),

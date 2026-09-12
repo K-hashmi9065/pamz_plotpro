@@ -57,7 +57,7 @@ class PlotDetailsDialog extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
@@ -107,6 +107,9 @@ class PlotDetailsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final plotsAsync = ref.watch(plotsListStreamProvider);
+    final plot = plotsAsync.value?.where((p) => p.id == this.plot.id).firstOrNull ?? this.plot;
+
     final projectsAsync = ref.watch(projectsListStreamProvider);
     final salesAsync = ref.watch(salesListStreamProvider);
     final installmentsAsync = ref.watch(installmentsListStreamProvider);
@@ -257,10 +260,11 @@ class PlotDetailsDialog extends ConsumerWidget {
 
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Container(
         width: 960,
@@ -336,7 +340,6 @@ class PlotDetailsDialog extends ConsumerWidget {
                         icon: const Icon(Icons.edit_outlined, size: 15),
                         label: const Text('Edit Plot', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         onPressed: () {
-                          Navigator.of(context).pop();
                           PlotEditDialog.show(context, plot);
                         },
                       ),
@@ -349,7 +352,6 @@ class PlotDetailsDialog extends ConsumerWidget {
                         icon: const Icon(Icons.add, size: 15),
                         label: const Text('Add Expense', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         onPressed: () {
-                          Navigator.of(context).pop();
                           ExpenseFormDialog.show(
                             context,
                             preselectedProjectId: plot.projectId,
@@ -388,7 +390,6 @@ class PlotDetailsDialog extends ConsumerWidget {
                           label: const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                           onPressed: () {
                             final unpaidInst = relevantInstallments.where((i) => !i.isFullyPaid).firstOrNull;
-                            Navigator.of(context).pop();
                             PaymentRecordDialog.show(
                               context,
                               installment: unpaidInst,
@@ -406,27 +407,24 @@ class PlotDetailsDialog extends ConsumerWidget {
                           icon: const Icon(Icons.storefront_outlined, size: 15),
                           label: const Text('Book / Sell', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                           onPressed: () {
-                            Navigator.of(context).pop();
                             SaleAgreementDialog.show(
                               context,
                               preselectedProjectId: plot.projectId,
                             );
                           },
                         ),
+                      if (plot.isRoad)
+                        const StatusBadge(label: 'ROAD', type: BadgeType.info)
+                      else if (!isFullyPaid)
+                        StatusBadge(
+                          label: plot.status.name.toUpperCase(),
+                          type: _getBadgeType(plot.status),
+                        ),
                       IconButton(
                         icon: const Icon(Icons.delete_outline, color: AppColors.dangerText, size: 20),
                         tooltip: 'Delete Plot',
                         onPressed: () => _handleDeletePlot(context, ref),
                       ),
-                      if (plot.isRoad)
-                        const StatusBadge(label: 'ROAD', type: BadgeType.info)
-                      else if (isFullyPaid)
-                        const StatusBadge(label: 'FULLY PAID', type: BadgeType.success)
-                      else
-                        StatusBadge(
-                          label: plot.status.name.toUpperCase(),
-                          type: _getBadgeType(plot.status),
-                        ),
                       IconButton(
                         icon: const Icon(Icons.close, color: AppColors.textSecondary),
                         onPressed: () => Navigator.of(context).pop(),
@@ -456,7 +454,7 @@ class PlotDetailsDialog extends ConsumerWidget {
                         child: _buildDimensionCard(
                           icon: Icons.straighten_outlined,
                           title: 'Plot Length',
-                          value: lengthStr,
+                          value: (lFt > 0 || lIn > 0) ? lengthStr : 'NA',
                         ),
                       ),
                       SizedBox(
@@ -464,29 +462,33 @@ class PlotDetailsDialog extends ConsumerWidget {
                         child: _buildDimensionCard(
                           icon: Icons.straighten_outlined,
                           title: 'Plot Breadth / Width',
-                          value: breadthStr,
+                          value: (bFt > 0 || bIn > 0) ? breadthStr : 'NA',
                         ),
                       ),
                       SizedBox(
                         width: (constraints.maxWidth - 16) / 2,
                         child: _buildDimensionCard(
                           icon: Icons.square_foot_outlined,
-                          title: 'Primary Measurement',
-                          value: LandUnitConverter.formatLandMeasurement(
-                            areaSqFt: plot.areaSqFt,
-                            measurementUnit: plot.measurementUnit,
-                            displayArea: plot.displayArea,
-                            kattaValue: plot.kattaValue,
-                            dhurValue: plot.dhurValue,
-                          ),
+                          title: 'Actual Registered Area',
+                          value: (plot.displayArea != null && plot.displayArea! > 0)
+                              ? LandUnitConverter.formatLandMeasurement(
+                                  areaSqFt: plot.areaSqFt,
+                                  measurementUnit: plot.measurementUnit,
+                                  displayArea: plot.displayArea,
+                                  kattaValue: plot.kattaValue,
+                                  dhurValue: plot.dhurValue,
+                                )
+                              : 'NA',
                         ),
                       ),
                       SizedBox(
                         width: (constraints.maxWidth - 16) / 2,
                         child: _buildDimensionCard(
                           icon: Icons.crop_free_outlined,
-                          title: 'Area in Square Feet',
-                          value: '${plot.areaSqFt.toStringAsFixed(1)} sq.ft',
+                          title: 'Calculated Area (L × B)',
+                          value: (lFt > 0 || bFt > 0)
+                              ? '${LandUnitConverter.dimensionsToSqFt(lengthFt: lFt, lengthIn: lIn, breadthFt: bFt, breadthIn: bIn).toStringAsFixed(1)} sq.ft'
+                              : 'NA',
                         ),
                       ),
                       SizedBox(
@@ -803,7 +805,6 @@ class PlotDetailsDialog extends ConsumerWidget {
                               label: const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                               onPressed: () {
                                 final unpaidInst = relevantInstallments.where((i) => !i.isFullyPaid).firstOrNull;
-                                Navigator.of(context).pop();
                                 PaymentRecordDialog.show(
                                   context,
                                   installment: unpaidInst,
@@ -820,7 +821,6 @@ class PlotDetailsDialog extends ConsumerWidget {
                               icon: const Icon(Icons.assignment_outlined, size: 13),
                               label: const Text('Create Sale Agreement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                               onPressed: () {
-                                Navigator.of(context).pop();
                                 SaleAgreementDialog.show(
                                   context,
                                   preselectedProjectId: plot.projectId,
@@ -961,10 +961,6 @@ class PlotDetailsDialog extends ConsumerWidget {
                 children: [
                   Text(
                     'Created Date: $formattedDate',
-                    style: AppTypography.secondary.copyWith(fontSize: 12),
-                  ),
-                  Text(
-                    'Measurement Unit Mode: ${plot.measurementUnit}',
                     style: AppTypography.secondary.copyWith(fontSize: 12),
                   ),
                 ],

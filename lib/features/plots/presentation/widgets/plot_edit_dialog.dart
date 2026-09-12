@@ -204,10 +204,11 @@ class _PlotEditDialogState extends ConsumerState<PlotEditDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
       child: Container(
         width: 640,
         constraints: BoxConstraints(
@@ -363,7 +364,7 @@ class _PlotEditDialogState extends ConsumerState<PlotEditDialog> {
                             controller: _priceController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: const InputDecoration(
-                              labelText: 'Expected Plot Sale Price (Optional)',
+                              labelText: 'Plot Sell Price (Optional)',
                               hintText: 'e.g. 250000',
                               prefixText: '₹ ',
                             ),
@@ -379,8 +380,12 @@ class _PlotEditDialogState extends ConsumerState<PlotEditDialog> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.dangerText,
+                            side: const BorderSide(color: AppColors.dangerBorder),
+                          ),
                           onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
+                          child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(

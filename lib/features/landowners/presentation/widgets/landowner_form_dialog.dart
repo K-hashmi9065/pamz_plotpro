@@ -119,10 +119,11 @@ class _LandownerFormDialogState extends ConsumerState<LandownerFormDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
       child: Container(
         width: 500,
         constraints: BoxConstraints(
@@ -244,53 +245,59 @@ class _LandownerFormDialogState extends ConsumerState<LandownerFormDialog> {
                           Builder(
                             builder: (context) {
                               final projectsAsync = ref.watch(projectsListStreamProvider);
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Expanded(
-                                    child: projectsAsync.when(
-                                      data: (projects) => ValueListenableBuilder<String?>(
-                                        valueListenable: _selectedProjectIdNotifier,
-                                        builder: (context, selectedProjectId, _) {
-                                          return DropdownButtonFormField<String>(
-                                            initialValue: selectedProjectId,
-                                            isExpanded: true,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Associated Project (Optional)',
-                                              hintText: 'Select associated project...',
-                                            ),
-                                            items: [
-                                              const DropdownMenuItem<String>(
-                                                value: null,
-                                                child: Text('None / General Landowner'),
+                              return IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(
+                                      child: projectsAsync.when(
+                                        data: (projects) => ValueListenableBuilder<String?>(
+                                          valueListenable: _selectedProjectIdNotifier,
+                                          builder: (context, selectedProjectId, _) {
+                                            return DropdownButtonFormField<String>(
+                                              initialValue: selectedProjectId,
+                                              isExpanded: true,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Associated Project (Optional)',
+                                                hintText: 'Select associated project...',
                                               ),
-                                              ...projects.map((p) => DropdownMenuItem<String>(
-                                                    value: p.id,
-                                                    child: Text(
-                                                      '${p.name} (${p.code})',
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  )),
-                                            ],
-                                            onChanged: (val) => _selectedProjectIdNotifier.value = val,
-                                          );
-                                        },
+                                              items: [
+                                                const DropdownMenuItem<String>(
+                                                  value: null,
+                                                  child: Text('None / General Landowner'),
+                                                ),
+                                                ...projects.map((p) => DropdownMenuItem<String>(
+                                                      value: p.id,
+                                                      child: Text(
+                                                        '${p.name} (${p.code})',
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    )),
+                                              ],
+                                              onChanged: (val) => _selectedProjectIdNotifier.value = val,
+                                            );
+                                          },
+                                        ),
+                                        loading: () => const LinearProgressIndicator(),
+                                        error: (err, s) => Text('Error loading projects: $err'),
                                       ),
-                                      loading: () => const LinearProgressIndicator(),
-                                      error: (err, s) => Text('Error loading projects: $err'),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.accent,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                    const SizedBox(width: 10),
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.accent,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      onPressed: _createNewProject,
+                                      icon: const Icon(Icons.add, size: 18),
+                                      label: const Text('New Project', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                     ),
-                                    onPressed: _createNewProject,
-                                    icon: const Icon(Icons.add, size: 18),
-                                    label: const Text('New Project', style: TextStyle(fontSize: 12)),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               );
                             },
                           ),
@@ -304,8 +311,12 @@ class _LandownerFormDialogState extends ConsumerState<LandownerFormDialog> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.dangerText,
+                          side: const BorderSide(color: AppColors.dangerBorder),
+                        ),
                         onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+                        child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(

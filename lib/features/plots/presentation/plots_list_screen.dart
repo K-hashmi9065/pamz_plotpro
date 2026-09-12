@@ -45,7 +45,7 @@ class PlotsListScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
@@ -352,7 +352,7 @@ class PlotsListScreen extends ConsumerWidget {
                   DataTableColumn(label: 'Plot Number', width: 140),
                   DataTableColumn(label: 'Plot Area', width: 130),
                   DataTableColumn(label: 'Allocated Cost', width: 180),
-                  DataTableColumn(label: 'Expected Price', width: 150),
+                  DataTableColumn(label: 'Sell Price', width: 150),
                   DataTableColumn(label: 'Status', width: 130),
                   DataTableColumn(label: 'Actions', width: 165, alignment: Alignment.center),
                 ],
@@ -442,7 +442,7 @@ class PlotsListScreen extends ConsumerWidget {
                             onPressed: () => PlotEditDialog.show(context, plot),
                           ),
                         IconButton(
-                          icon: const Icon(Icons.info_outline, size: 17),
+                          icon: const Icon(Icons.visibility_outlined, size: 17),
                           tooltip: 'Plot Details',
                           onPressed: () => PlotDetailsDialog.show(context, plot),
                         ),

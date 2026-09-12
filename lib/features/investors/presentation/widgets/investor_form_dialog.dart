@@ -143,10 +143,11 @@ class _InvestorFormDialogState extends ConsumerState<InvestorFormDialog> {
 
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
       child: Container(
         width: 540,
         padding: const EdgeInsets.all(24),
@@ -297,30 +298,35 @@ class _InvestorFormDialogState extends ConsumerState<InvestorFormDialog> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Expanded(
-                                      child: SearchableProjectDropdown(
-                                       projects: projects,
-                                       selectedProjectId: dropdownValue,
-                                       labelText: 'Attach to Project (Optional)',
-                                       hintText: '-- Select Project (Optional) --',
-                                       onChanged: (val) {
-                                         _selectedProjectIdNotifier.value = val;
-                                       },
-                                     ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    OutlinedButton.icon(
-                                      onPressed: _createNewProject,
-                                      icon: const Icon(Icons.add, size: 16),
-                                      label: const Text(' Create New Project'),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                                IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        child: SearchableProjectDropdown(
+                                         projects: projects,
+                                         selectedProjectId: dropdownValue,
+                                         labelText: 'Attach to Project (Optional)',
+                                         hintText: '-- Select Project (Optional) --',
+                                         onChanged: (val) {
+                                           _selectedProjectIdNotifier.value = val;
+                                         },
+                                       ),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 8),
+                                      OutlinedButton.icon(
+                                        onPressed: _createNewProject,
+                                        icon: const Icon(Icons.add, size: 16),
+                                        label: const Text(' Create New Project'),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 if (selectedProjectId != null) ...[
                                   const SizedBox(height: 14),
@@ -362,8 +368,12 @@ class _InvestorFormDialogState extends ConsumerState<InvestorFormDialog> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.dangerText,
+                            side: const BorderSide(color: AppColors.dangerBorder),
+                          ),
                           onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
+                          child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(

@@ -276,7 +276,7 @@ class ReceivablesPayablesScreen extends ConsumerWidget {
                       ),
                       const SizedBox(width: 4),
                       FormulaInfoButton(
-                        figureTitle: 'Buyer Balance Receivable',
+                        figureTitle: 'Customer Balance Receivable',
                         plainWordsFormula:
                             'Balance Receivable = Total Agreed Sales − Cash Collected',
                         terms: [

@@ -33,17 +33,21 @@ class LandownerPaymentHistoryDialog extends ConsumerWidget {
       barrierDismissible: true,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border),
         ),
         backgroundColor: AppColors.surface,
+        clipBehavior: Clip.antiAlias,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: SizedBox(
-          width: 920,
-          height: 680,
-          child: LandownerPaymentHistoryDialog(
-            purchaseAgreement: purchaseAgreement,
-            project: project,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            width: 920,
+            height: 680,
+            child: LandownerPaymentHistoryDialog(
+              purchaseAgreement: purchaseAgreement,
+              project: project,
+            ),
           ),
         ),
       ),

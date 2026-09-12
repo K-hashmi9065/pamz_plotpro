@@ -42,23 +42,27 @@ class BuyersSalesListScreen extends ConsumerWidget {
           children: [
             const Icon(Icons.delete_forever_outlined, color: AppColors.dangerText, size: 24),
             const SizedBox(width: 8),
-            Text('Confirm Delete Buyer', style: AppTypography.cardTitle),
+            Text('Confirm Delete Customer', style: AppTypography.cardTitle),
           ],
         ),
         content: Text(
-          'Are you sure you want to delete buyer "${buyer.name}" (${buyer.phone})?\n\n'
-          'WARNING: This will delete the buyer profile and any sales/installments associated with this buyer.',
+          'Are you sure you want to delete customer "${buyer.name}" (${buyer.phone})?\n\n'
+          'WARNING: This will delete the customer profile and any sales/installments associated with this customer.',
           style: AppTypography.body,
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.dangerText,
+              side: const BorderSide(color: AppColors.dangerBorder),
+            ),
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete Buyer', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete Customer', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -70,13 +74,13 @@ class BuyersSalesListScreen extends ConsumerWidget {
         await repo.deleteBuyer(buyer.id, userId: 'admin_user');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Buyer "${buyer.name}" deleted successfully!')),
+            SnackBar(content: Text('Customer "${buyer.name}" deleted successfully!')),
           );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting buyer: $e')),
+            SnackBar(content: Text('Error deleting customer: $e')),
           );
         }
       }
@@ -209,7 +213,7 @@ class BuyersSalesListScreen extends ConsumerWidget {
             loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
             error: (err, stack) => Center(
               child: Text(
-                'Error loading buyers: $err',
+                'Error loading customers: $err',
                 style: AppTypography.body.copyWith(color: AppColors.dangerText),
               ),
             ),
@@ -313,7 +317,7 @@ class BuyersSalesListScreen extends ConsumerWidget {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.edit_outlined, color: AppColors.accent, size: 18),
-                                tooltip: 'Edit Buyer Profile',
+                                tooltip: 'Edit Customer Profile',
                                 onPressed: () => BuyerFormDialog.show(
                                   context,
                                   buyer: buyer,
@@ -321,7 +325,7 @@ class BuyersSalesListScreen extends ConsumerWidget {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline, color: AppColors.dangerText, size: 18),
-                                tooltip: 'Delete Buyer',
+                                tooltip: 'Delete Customer',
                                 onPressed: () => _handleDeleteBuyer(context, ref, buyer),
                               ),
                             ],
@@ -413,7 +417,7 @@ class BuyersSalesListScreen extends ConsumerWidget {
                             ),
                             IconButton(
                               icon: const Icon(Icons.edit_outlined, color: AppColors.accent, size: 18),
-                              tooltip: 'Edit Buyer Profile',
+                              tooltip: 'Edit Customer Profile',
                               onPressed: () => BuyerFormDialog.show(
                                 context,
                                 buyer: buyer,
@@ -421,14 +425,14 @@ class BuyersSalesListScreen extends ConsumerWidget {
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete_outline, color: AppColors.dangerText, size: 18),
-                              tooltip: 'Delete Buyer Profile',
+                              tooltip: 'Delete Customer Profile',
                               onPressed: () => _handleDeleteBuyer(context, ref, buyer),
                             ),
                           ],
                         ),
                       ];
                     }).toList(),
-                    emptyMessage: 'No sales agreements or buyers recorded.',
+                    emptyMessage: 'No sales agreements or customers recorded.',
                   );
                 },
               );

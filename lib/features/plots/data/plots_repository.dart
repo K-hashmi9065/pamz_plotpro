@@ -45,6 +45,7 @@ class PlotsRepository {
 
   /// Watch stream of all plots
   Stream<List<PlotModel>> watchAllPlots() {
+    _syncAllProjectCostAllocations();
     return _db.select(_db.plots).watch().map(
           (rows) => rows.map(_toModel).toList(),
         );
@@ -52,8 +53,16 @@ class PlotsRepository {
 
   /// Watch plots for a specific project
   Stream<List<PlotModel>> watchPlotsForProject(String projectId) {
+    recalculateProjectCostAllocation(projectId);
     final query = _db.select(_db.plots)..where((tbl) => tbl.projectId.equals(projectId));
     return query.watch().map((rows) => rows.map(_toModel).toList());
+  }
+
+  Future<void> _syncAllProjectCostAllocations() async {
+    final allProjects = await _db.select(_db.projects).get();
+    for (final p in allProjects) {
+      await recalculateProjectCostAllocation(p.id);
+    }
   }
 
   /// Create a new plot (Validation: Plot Number *, Area Sq. Ft. > 0)
@@ -233,12 +242,16 @@ class PlotsRepository {
     final plotsList = await (_db.select(_db.plots)..where((tbl) => tbl.projectId.equals(projectId))).get();
     if (plotsList.isEmpty) return;
 
-    final totalProjectAllocatedArea = plotsList.fold<double>(0.0, (sum, p) => sum + p.areaSqFt);
+    // Standard formula: Allocated Cost = (Plot Area / Total Project Land Area) * Actual Project Cost
+    // Use project.landAreaSqFt (the entire acquired project land) so un-subdivided land is not erroneously dumped onto existing plots.
+    final totalProjectArea = project.landAreaSqFt > 0
+        ? project.landAreaSqFt
+        : plotsList.fold<double>(0.0, (sum, p) => sum + p.areaSqFt);
 
     for (final plot in plotsList) {
       final allocatedCost = CalculationEngine.calculateAreaBasedPlotCost(
         plotAreaSqFt: plot.areaSqFt,
-        totalProjectAreaSqFt: totalProjectAllocatedArea,
+        totalProjectAreaSqFt: totalProjectArea,
         actualProjectCost: project.actualCost,
       );
 

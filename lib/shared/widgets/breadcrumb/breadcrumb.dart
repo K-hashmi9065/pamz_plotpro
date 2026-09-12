@@ -19,15 +19,37 @@ class Breadcrumb extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       color: AppColors.background,
       child: Row(
         children: [
-          InkWell(
-            onTap: () => context.go('/dashboard'),
-            child: Text(
-              'Home',
-              style: AppTypography.secondary.copyWith(fontSize: 13),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: InkWell(
+              onTap: () => context.go('/dashboard'),
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.home_outlined,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Home',
+                      style: AppTypography.secondary.copyWith(
+                        fontSize: 12.5,
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           ...segments.map((segment) {
@@ -37,28 +59,32 @@ class Breadcrumb extends StatelessWidget {
             final capitalized = formatted.isEmpty
                 ? ''
                 : '${formatted[0].toUpperCase()}${formatted.substring(1)}';
+            final isLast = segment == segments.last;
 
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  padding: EdgeInsets.symmetric(horizontal: 4),
                   child: Icon(
-                    Icons.chevron_right,
+                    Icons.chevron_right_rounded,
                     size: 14,
                     color: AppColors.textDisabled,
                   ),
                 ),
-                Text(
-                  capitalized,
-                  style: AppTypography.secondary.copyWith(
-                    color: segment == segments.last
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary,
-                    fontWeight: segment == segments.last
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                    fontSize: 13,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    capitalized,
+                    style: AppTypography.secondary.copyWith(
+                      color: isLast
+                          ? AppColors.textPrimary
+                          : AppColors.textMuted,
+                      fontWeight: isLast
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      fontSize: 12.5,
+                    ),
                   ),
                 ),
               ],

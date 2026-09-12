@@ -311,8 +311,12 @@ class InvestorProfileDialog extends ConsumerWidget {
                           ),
                           actions: [
                             OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.dangerText,
+                                side: const BorderSide(color: AppColors.dangerBorder),
+                              ),
                               onPressed: () => Navigator.of(dialogCtx).pop(false),
-                              child: const Text('Cancel'),
+                              child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                             ),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),

@@ -188,38 +188,44 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                   ),
 
                   // Target Project *
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: projectsAsync.when(
-                          data: (projects) => ValueListenableBuilder<String?>(
-                            valueListenable: _selectedProjectIdNotifier,
-                            builder: (context, selectedProjectId, _) {
-                              return SearchableProjectDropdown(
-                                projects: projects,
-                                selectedProjectId: selectedProjectId,
-                                labelText: 'Target Project *',
-                                onChanged: (val) => _selectedProjectIdNotifier.value = val,
-                                validator: (val) => val == null ? 'Project * is required' : null,
-                              );
-                            },
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: projectsAsync.when(
+                            data: (projects) => ValueListenableBuilder<String?>(
+                              valueListenable: _selectedProjectIdNotifier,
+                              builder: (context, selectedProjectId, _) {
+                                return SearchableProjectDropdown(
+                                  projects: projects,
+                                  selectedProjectId: selectedProjectId,
+                                  labelText: 'Target Project *',
+                                  onChanged: (val) => _selectedProjectIdNotifier.value = val,
+                                  validator: (val) => val == null ? 'Project * is required' : null,
+                                );
+                              },
+                            ),
+                            loading: () => const LinearProgressIndicator(),
+                            error: (e, s) => Text('Error loading projects: $e'),
                           ),
-                          loading: () => const LinearProgressIndicator(),
-                          error: (e, s) => Text('Error loading projects: $e'),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        const SizedBox(width: 10),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: _createNewProject,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('New Project', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
-                        onPressed: _createNewProject,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('New Project', style: TextStyle(fontSize: 12)),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 14),
 
@@ -350,8 +356,12 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.dangerText,
+                          side: const BorderSide(color: AppColors.dangerBorder),
+                        ),
                         onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+                        child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(

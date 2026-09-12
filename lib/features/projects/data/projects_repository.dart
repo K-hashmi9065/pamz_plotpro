@@ -228,6 +228,10 @@ class ProjectsRepository {
       ),
     );
 
+    // Recalculate plot cost allocations
+    final plotsRepo = PlotsRepository(_db);
+    await plotsRepo.recalculateProjectCostAllocation(project.id);
+
     // Write audit log
     await _db.into(_db.auditLogs).insert(
           AuditLogsCompanion(

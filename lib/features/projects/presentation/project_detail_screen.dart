@@ -79,7 +79,7 @@ class ProjectDetailScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -511,18 +511,34 @@ class ProjectDetailScreen extends ConsumerWidget {
                 // Tab View Contents with Smooth Animation
                 Expanded(
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 240),
+                    duration: const Duration(milliseconds: 260),
+                    reverseDuration: const Duration(milliseconds: 160),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: Alignment.topLeft,
+                        children: <Widget>[
+                          ...previousChildren,
+                          ?currentChild,
+                        ],
+                      );
+                    },
                     transitionBuilder:
                         (Widget child, Animation<double> animation) {
                           return FadeTransition(
-                            opacity: animation,
+                            opacity: CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeInOutCubic,
+                            ),
                             child: SlideTransition(
                               position: Tween<Offset>(
-                                begin: const Offset(0.015, 0),
+                                begin: const Offset(0, 0.01),
                                 end: Offset.zero,
-                              ).animate(animation),
+                              ).animate(CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              )),
                               child: child,
                             ),
                           );
@@ -650,9 +666,44 @@ class _OverviewTab extends ConsumerWidget {
             _infoRow('Project Name:', project.name),
             _infoRow('Location:', project.location),
             _infoRow('Landowner:', project.landownerName ?? 'Not Assigned'),
-            _infoRow(
-              'Total Land Purchased:',
-              '${CalculationEngine.indianNumberFormat.format(project.landAreaSqFt.round())} Sq. Ft. ($totalKattaStr Kattha)',
+            Builder(
+              builder: (context) {
+                final bool hasDimensions = project.lengthFt != null &&
+                    project.breadthFt != null &&
+                    (project.lengthFt! > 0 || project.breadthFt! > 0);
+                final double calculatedSqFt = hasDimensions
+                    ? LandUnitConverter.dimensionsToSqFt(
+                        lengthFt: project.lengthFt!,
+                        lengthIn: project.lengthIn ?? 0.0,
+                        breadthFt: project.breadthFt!,
+                        breadthIn: project.breadthIn ?? 0.0,
+                      )
+                    : 0.0;
+                final String calculatedAreaText = hasDimensions
+                    ? '${CalculationEngine.indianNumberFormat.format(calculatedSqFt.round())} Sq. Ft. (${project.lengthFt?.toInt() ?? 0} ft ${project.lengthIn?.toInt() ?? 0} in × ${project.breadthFt?.toInt() ?? 0} ft ${project.breadthIn?.toInt() ?? 0} in)'
+                    : 'NA';
+
+                final bool hasActualArea =
+                    project.displayArea != null && project.displayArea! > 0;
+                final String actualAreaText = hasActualArea
+                    ? '${CalculationEngine.indianNumberFormat.format(project.landAreaSqFt.round())} Sq. Ft. ($totalKattaStr Kattha)'
+                    : 'NA';
+
+                return Column(
+                  children: [
+                    _infoRow(
+                      'Calculated Area (L × B):',
+                      calculatedAreaText,
+                      valueColor: hasDimensions ? AppColors.accent : AppColors.textSecondary,
+                    ),
+                    _infoRow(
+                      'Actual Area (Registered):',
+                      actualAreaText,
+                      valueColor: hasActualArea ? AppColors.textPrimary : AppColors.textSecondary,
+                    ),
+                  ],
+                );
+              },
             ),
 
             plotsAsync.when(
@@ -793,7 +844,6 @@ class _OverviewTab extends ConsumerWidget {
               error: (e, s) => const SizedBox.shrink(),
             ),
 
-            _infoRow('Measurement Unit:', project.measurementUnit),
             _infoRow(
               'Land Purchase Price:',
               CalculationEngine.formatCurrency(project.purchasePrice),
@@ -977,7 +1027,7 @@ class _PlotsTab extends ConsumerWidget {
                   DataTableColumn(label: 'Plot No.', width: 140),
                   DataTableColumn(label: 'Plot Area', width: 150),
                   DataTableColumn(label: 'Allocated Cost', width: 150),
-                  DataTableColumn(label: 'Expected Price', width: 150),
+                  DataTableColumn(label: 'Sell Price', width: 150),
                   DataTableColumn(label: 'Status', width: 130),
                   DataTableColumn(
                     label: 'Actions',
@@ -1044,7 +1094,7 @@ class _PlotsTab extends ConsumerWidget {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.info_outline, size: 16),
+                          icon: const Icon(Icons.visibility_outlined, size: 16),
                           tooltip: 'Plot Details',
                           onPressed: () => PlotDetailsDialog.show(context, p),
                         ),
@@ -1268,7 +1318,7 @@ class _BuyersSalesTab extends ConsumerWidget {
                             color: AppColors.accent,
                             size: 18,
                           ),
-                          tooltip: 'Export / Share Buyer Sale Agreement PDF',
+                          tooltip: 'Export / Share Customer Sale Agreement PDF',
                           onPressed: () {
                             final projectAsync = ref.read(
                               projectDetailStreamProvider(projectId),

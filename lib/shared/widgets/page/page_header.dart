@@ -7,6 +7,7 @@ class PageHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final IconData? icon;
+  final Widget? badge;
   final List<Widget>? actions;
 
   const PageHeader({
@@ -14,6 +15,7 @@ class PageHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.icon,
+    this.badge,
     this.actions,
   });
 
@@ -31,42 +33,66 @@ class PageHeader extends StatelessWidget {
         children: [
           if (icon != null) ...[
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: AppColors.surfaceSubtle,
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.accentLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.15)),
               ),
+              alignment: Alignment.center,
               child: Icon(
                 icon,
-                size: 24,
-                color: AppColors.primary,
+                size: 22,
+                color: AppColors.accent,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
           ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: AppTypography.pageTitle,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: AppTypography.pageTitle.copyWith(fontSize: 22),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (badge != null) ...[
+                      const SizedBox(width: 10),
+                      badge!,
+                    ],
+                  ],
                 ),
                 if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     subtitle!,
-                    style: AppTypography.secondary,
+                    style: AppTypography.secondary.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ],
             ),
           ),
-          if (actions != null && actions!.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
+          if (actions != null && actions!.isNotEmpty) ...[
+            const SizedBox(width: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: actions!,
             ),
+          ],
         ],
       ),
     );

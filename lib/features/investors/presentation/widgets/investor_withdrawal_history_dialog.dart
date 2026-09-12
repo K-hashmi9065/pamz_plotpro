@@ -35,18 +35,22 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
       barrierDismissible: true,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border),
         ),
         backgroundColor: AppColors.surface,
+        clipBehavior: Clip.antiAlias,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: SizedBox(
-          width: 900,
-          height: 640,
-          child: InvestorWithdrawalHistoryDialog(
-            projectInvestor: projectInvestor,
-            projectName: projectName,
-            projectCode: projectCode,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            width: 900,
+            height: 640,
+            child: InvestorWithdrawalHistoryDialog(
+              projectInvestor: projectInvestor,
+              projectName: projectName,
+              projectCode: projectCode,
+            ),
           ),
         ),
       ),

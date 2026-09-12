@@ -134,9 +134,13 @@ class InvestorsListScreen extends ConsumerWidget {
           style: AppTypography.body,
         ),
         actions: [
-          TextButton(
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.dangerText,
+              side: const BorderSide(color: AppColors.dangerBorder),
+            ),
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
@@ -492,7 +496,7 @@ class InvestorsListScreen extends ConsumerWidget {
                         IconButton(
                           padding: const EdgeInsets.all(4),
                           constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.folder_shared_outlined, color: AppColors.primary, size: 18),
+                          icon: const Icon(Icons.visibility_outlined, color: AppColors.primary, size: 18),
                           tooltip: 'View Profile & Agreements',
                           onPressed: () => InvestorProfileDialog.show(
                             context,

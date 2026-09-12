@@ -224,8 +224,12 @@ class _ProjectClosureDialogState extends ConsumerState<ProjectClosureDialog> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.dangerText,
+                              side: const BorderSide(color: AppColors.dangerBorder),
+                            ),
                             onPressed: isClosing ? null : () => Navigator.of(context).pop(),
-                            child: const Text('Cancel'),
+                            child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton.icon(
