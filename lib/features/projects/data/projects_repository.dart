@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/database/app_database.dart';
+import '../../plots/data/plots_repository.dart';
 import '../domain/project_model.dart';
 
 class ProjectsRepository {
@@ -175,6 +176,35 @@ class ProjectsRepository {
     );
 
     await _db.into(_db.projects).insert(companion);
+
+    // If landowner and purchase price are provided, create default purchase agreement and installment schedule
+    if (landownerId != null && landownerId.isNotEmpty && purchasePrice > 0) {
+      final paId = _uuid.v4();
+      await _db.into(_db.purchaseAgreements).insert(
+            PurchaseAgreementsCompanion(
+              id: Value(paId),
+              projectId: Value(newId),
+              landownerId: Value(landownerId),
+              totalPrice: Value(purchasePrice),
+              agreementDate: Value(DateTime.now()),
+              status: const Value('ACTIVE'),
+              createdAt: Value(DateTime.now()),
+            ),
+          );
+
+      await _db.into(_db.installments).insert(
+            InstallmentsCompanion(
+              id: Value(_uuid.v4()),
+              purchaseAgreementId: Value(paId),
+              installmentNumber: const Value(1),
+              dueDate: Value(DateTime.now().add(const Duration(days: 30))),
+              dueAmount: Value(purchasePrice),
+              paidAmount: const Value(0.0),
+              status: const Value('PENDING'),
+              createdAt: Value(DateTime.now()),
+            ),
+          );
+    }
 
     // Write audit log
     await _db.into(_db.auditLogs).insert(

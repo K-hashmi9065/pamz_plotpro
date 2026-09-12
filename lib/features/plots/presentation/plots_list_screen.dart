@@ -381,29 +381,38 @@ class PlotsListScreen extends ConsumerWidget {
                           style: AppTypography.amountMedium.copyWith(fontSize: 14),
                         ),
                         const SizedBox(width: 4),
-                        FormulaInfoButton(
-                          figureTitle: 'Plot Cost Allocation (${plot.plotNumber})',
-                          plainWordsFormula:
-                              'Allocated Plot Cost = (Plot Area / Total Project Area) * Actual Project Cost',
-                          terms: [
-                            FormulaTermDefinition(
-                              term: 'Plot Area',
-                              definition: 'Area of this specific plot in square feet.',
-                              valueDisplay: '${plot.areaSqFt.round()} sq.ft',
-                            ),
-                            const FormulaTermDefinition(
-                              term: 'Total Project Area',
-                              definition: 'Total area of all plots in this project.',
-                              valueDisplay: '2,27,00,000 sq.ft',
-                            ),
-                            const FormulaTermDefinition(
-                              term: 'Actual Project Cost',
-                              definition: 'Purchase price plus all capitalized expenses.',
-                              valueDisplay: '₹2,27,00,000',
-                            ),
-                          ],
-                          calculatedResultDisplay:
-                              CalculationEngine.formatCurrency(plot.allocatedCost),
+                        Builder(
+                          builder: (context) {
+                            final projectsList = projectsAsync.value ?? [];
+                            final prj = projectsList.where((p) => p.id == plot.projectId).firstOrNull;
+                            final totalArea = (prj != null && prj.landAreaSqFt > 0) ? prj.landAreaSqFt : plot.areaSqFt;
+                            final totalCost = prj?.actualCost ?? plot.allocatedCost;
+
+                            return FormulaInfoButton(
+                              figureTitle: 'Plot Cost Allocation (${plot.plotNumber})',
+                              plainWordsFormula:
+                                  'Allocated Plot Cost = (Plot Area / Total Project Land Area) * Actual Project Cost',
+                              terms: [
+                                FormulaTermDefinition(
+                                  term: 'Plot Area',
+                                  definition: 'Area of this specific plot in square feet.',
+                                  valueDisplay: '${plot.areaSqFt.round()} sq.ft',
+                                ),
+                                FormulaTermDefinition(
+                                  term: 'Total Project Land Area',
+                                  definition: 'Total land area of the parent project.',
+                                  valueDisplay: '${totalArea.round()} sq.ft',
+                                ),
+                                FormulaTermDefinition(
+                                  term: 'Actual Project Cost',
+                                  definition: 'Total purchase price plus capitalized expenses.',
+                                  valueDisplay: CalculationEngine.formatCurrency(totalCost),
+                                ),
+                              ],
+                              calculatedResultDisplay:
+                                  CalculationEngine.formatCurrency(plot.allocatedCost),
+                            );
+                          },
                         ),
                       ],
                     ),
