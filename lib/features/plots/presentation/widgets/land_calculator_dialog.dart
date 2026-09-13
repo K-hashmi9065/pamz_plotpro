@@ -29,17 +29,39 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
   final _roadLengthInController = TextEditingController();
   final _roadBreadthFtController = TextEditingController();
   final _roadBreadthInController = TextEditingController();
+
+  final _roadLengthFtFocusNode = FocusNode();
+  final _roadLengthInFocusNode = FocusNode();
+  final _roadBreadthFtFocusNode = FocusNode();
+  final _roadBreadthInFocusNode = FocusNode();
+
   final ValueNotifier<double> _roadAreaSqFtNotifier = ValueNotifier<double>(0.0);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _roadLengthFtFocusNode.addListener(() {
+      if (!_roadLengthFtFocusNode.hasFocus) _normalizeRoadLength();
+    });
+    _roadLengthInFocusNode.addListener(() {
+      if (!_roadLengthInFocusNode.hasFocus) _normalizeRoadLength();
+    });
+    _roadBreadthFtFocusNode.addListener(() {
+      if (!_roadBreadthFtFocusNode.hasFocus) _normalizeRoadBreadth();
+    });
+    _roadBreadthInFocusNode.addListener(() {
+      if (!_roadBreadthInFocusNode.hasFocus) _normalizeRoadBreadth();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _roadLengthFtFocusNode.dispose();
+    _roadLengthInFocusNode.dispose();
+    _roadBreadthFtFocusNode.dispose();
+    _roadBreadthInFocusNode.dispose();
     _roadLengthFtController.dispose();
     _roadLengthInController.dispose();
     _roadBreadthFtController.dispose();
@@ -47,6 +69,44 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
     _convertedSqFtNotifier.dispose();
     _roadAreaSqFtNotifier.dispose();
     super.dispose();
+  }
+
+  void _normalizeRoadLength() {
+    final rawFt = _roadLengthFtController.text.trim();
+    final rawIn = _roadLengthInController.text.trim();
+    if (rawFt.isEmpty && rawIn.isEmpty) return;
+
+    final lFt = double.tryParse(rawFt) ?? 0.0;
+    final lIn = double.tryParse(rawIn) ?? 0.0;
+    final totalDecimalFeet = lFt + (lIn / 12.0);
+    if (totalDecimalFeet > 0) {
+      final fi = LandUnitConverter.decimalFeetToFeetInches(totalDecimalFeet);
+      _roadLengthFtController.text = fi.feet.toString();
+      final inStr = fi.inches == fi.inches.roundToDouble()
+          ? fi.inches.toInt().toString()
+          : fi.inches.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+      _roadLengthInController.text = inStr == '0' ? '' : inStr;
+      _calculateRoadArea();
+    }
+  }
+
+  void _normalizeRoadBreadth() {
+    final rawFt = _roadBreadthFtController.text.trim();
+    final rawIn = _roadBreadthInController.text.trim();
+    if (rawFt.isEmpty && rawIn.isEmpty) return;
+
+    final bFt = double.tryParse(rawFt) ?? 0.0;
+    final bIn = double.tryParse(rawIn) ?? 0.0;
+    final totalDecimalFeet = bFt + (bIn / 12.0);
+    if (totalDecimalFeet > 0) {
+      final fi = LandUnitConverter.decimalFeetToFeetInches(totalDecimalFeet);
+      _roadBreadthFtController.text = fi.feet.toString();
+      final inStr = fi.inches == fi.inches.roundToDouble()
+          ? fi.inches.toInt().toString()
+          : fi.inches.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+      _roadBreadthInController.text = inStr == '0' ? '' : inStr;
+      _calculateRoadArea();
+    }
   }
 
   void _calculateRoadArea() {
@@ -164,12 +224,17 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
                             Expanded(
                               child: TextFormField(
                                 controller: _roadLengthFtController,
+                                focusNode: _roadLengthFtFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Road Length (Feet)',
-                                  hintText: 'e.g. 100',
+                                  hintText: 'e.g. 100 or 405.5',
                                   suffixText: 'ft',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeRoadLength();
+                                  _roadLengthInFocusNode.requestFocus();
+                                },
                                 onChanged: (_) => _calculateRoadArea(),
                               ),
                             ),
@@ -177,12 +242,17 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
                             Expanded(
                               child: TextFormField(
                                 controller: _roadLengthInController,
+                                focusNode: _roadLengthInFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Length (Inches)',
                                   hintText: '0 - 11',
                                   suffixText: 'in',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeRoadLength();
+                                  _roadBreadthFtFocusNode.requestFocus();
+                                },
                                 onChanged: (_) => _calculateRoadArea(),
                               ),
                             ),
@@ -195,12 +265,17 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
                             Expanded(
                               child: TextFormField(
                                 controller: _roadBreadthFtController,
+                                focusNode: _roadBreadthFtFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Road Breadth / Width (Feet)',
-                                  hintText: 'e.g. 15',
+                                  hintText: 'e.g. 15 or 15.5',
                                   suffixText: 'ft',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeRoadBreadth();
+                                  _roadBreadthInFocusNode.requestFocus();
+                                },
                                 onChanged: (_) => _calculateRoadArea(),
                               ),
                             ),
@@ -208,12 +283,17 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
                             Expanded(
                               child: TextFormField(
                                 controller: _roadBreadthInController,
+                                focusNode: _roadBreadthInFocusNode,
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                 decoration: const InputDecoration(
                                   labelText: 'Breadth (Inches)',
                                   hintText: '0 - 11',
                                   suffixText: 'in',
                                 ),
+                                onEditingComplete: () {
+                                  _normalizeRoadBreadth();
+                                  _roadBreadthInFocusNode.unfocus();
+                                },
                                 onChanged: (_) => _calculateRoadArea(),
                               ),
                             ),
@@ -251,10 +331,19 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
   }
 
   Widget _buildConversionResultsCard(double sqFt, {String title = 'Converted Area Breakdown'}) {
-    final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
     final dec = LandUnitConverter.sqFtToDecimal(sqFt);
     final bigha = LandUnitConverter.sqFtToBigha(sqFt);
     final sqM = (sqFt / LandUnitConverter.sqFtPerSqMeter).toStringAsFixed(1);
+
+    final totalKatta = LandUnitConverter.sqFtToKatta(sqFt);
+    final totalKattaStr = totalKatta == totalKatta.roundToDouble()
+        ? totalKatta.toInt().toString()
+        : double.parse(totalKatta.toStringAsFixed(3)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+
+    final totalDhur = LandUnitConverter.sqFtToDhur(sqFt);
+    final totalDhurStr = totalDhur == totalDhur.roundToDouble()
+        ? totalDhur.toInt().toString()
+        : double.parse(totalDhur.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
 
     return Container(
       width: double.infinity,
@@ -279,7 +368,13 @@ class _LandCalculatorDialogState extends State<LandCalculatorDialog> with Single
                 child: _buildResultTile('Square Feet', '${sqFt.toStringAsFixed(1)} sq.ft'),
               ),
               Expanded(
-                child: _buildResultTile('Katta & Dhur', '${kd.katta} Katta ${kd.dhur} Dhur'),
+                child: _buildResultTile('Kattha', '$totalKattaStr Kattha'),
+              ),
+              Expanded(
+                child: _buildResultTile('Dhur', '$totalDhurStr Dhur'),
+              ),
+              Expanded(
+                child: _buildResultTile('Decimal', '$dec Dec'),
               ),
             ],
           ),

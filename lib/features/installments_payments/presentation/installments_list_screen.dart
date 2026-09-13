@@ -12,6 +12,7 @@ import '../../../shared/widgets/page/custom_data_table.dart';
 import '../../../shared/widgets/page/page_header.dart';
 import '../../../shared/widgets/page/status_badge.dart';
 import '../../dashboard/presentation/dashboard_providers.dart';
+import '../../projects/presentation/projects_providers.dart';
 import '../domain/installment_model.dart';
 import '../domain/transaction_model.dart';
 import 'installments_providers.dart';
@@ -19,10 +20,20 @@ import 'widgets/payment_record_dialog.dart';
 import 'widgets/void_transaction_dialog.dart';
 
 final installmentsTabProvider = StateProvider.autoDispose<int>((ref) => 0);
-final installmentsSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
-final installmentsStatusFilterProvider = StateProvider.autoDispose<String?>((ref) => null);
-final installmentsPaymentMethodFilterProvider = StateProvider.autoDispose<PaymentMethod?>((ref) => null);
-final installmentsDateRangeFilterProvider = StateProvider.autoDispose<DashboardDateRange>((ref) => DashboardDateRange.allTime);
+final installmentsSearchQueryProvider = StateProvider.autoDispose<String>(
+  (ref) => '',
+);
+final installmentsSelectedProjectIdProvider =
+    StateProvider.autoDispose<String?>((ref) => null);
+final installmentsStatusFilterProvider = StateProvider.autoDispose<String?>(
+  (ref) => null,
+);
+final installmentsPaymentMethodFilterProvider =
+    StateProvider.autoDispose<PaymentMethod?>((ref) => null);
+final installmentsDateRangeFilterProvider =
+    StateProvider.autoDispose<DashboardDateRange>(
+      (ref) => DashboardDateRange.allTime,
+    );
 
 class InstallmentsListScreen extends ConsumerWidget {
   const InstallmentsListScreen({super.key});
@@ -48,30 +59,35 @@ class InstallmentsListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedTabIndex = ref.watch(installmentsTabProvider);
     final searchQuery = ref.watch(installmentsSearchQueryProvider);
+    final selectedProjectId = ref.watch(installmentsSelectedProjectIdProvider);
     final statusFilter = ref.watch(installmentsStatusFilterProvider);
-    final paymentMethodFilter = ref.watch(installmentsPaymentMethodFilterProvider);
+    final paymentMethodFilter = ref.watch(
+      installmentsPaymentMethodFilterProvider,
+    );
     final dateRangeFilter = ref.watch(installmentsDateRangeFilterProvider);
 
     final currentRole = ref.watch(currentRoleProvider);
     final installmentsAsync = ref.watch(installmentsListStreamProvider);
     final transactionsAsync = ref.watch(transactionsListStreamProvider);
+    final projectsAsync = ref.watch(projectsListStreamProvider);
 
-    final isFilterActive = searchQuery.isNotEmpty ||
+    final isFilterActive =
+        searchQuery.isNotEmpty ||
+        selectedProjectId != null ||
         statusFilter != null ||
         paymentMethodFilter != null ||
         dateRangeFilter != DashboardDateRange.allTime;
 
     void resetFilters() {
       ref.read(installmentsSearchQueryProvider.notifier).state = '';
+      ref.read(installmentsSelectedProjectIdProvider.notifier).state = null;
       ref.read(installmentsStatusFilterProvider.notifier).state = null;
       ref.read(installmentsPaymentMethodFilterProvider.notifier).state = null;
-      ref.read(installmentsDateRangeFilterProvider.notifier).state = DashboardDateRange.allTime;
+      ref.read(installmentsDateRangeFilterProvider.notifier).state =
+          DashboardDateRange.allTime;
     }
 
-    final tabs = [
-      'Installments Schedule',
-      'Transactions Audit',
-    ];
+    final tabs = ['Installments Schedule', 'Transactions Audit'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,15 +124,29 @@ class InstallmentsListScreen extends ConsumerWidget {
                   return InkWell(
                     onTap: () {
                       ref.read(installmentsTabProvider.notifier).state = index;
-                      ref.read(installmentsStatusFilterProvider.notifier).state = null;
-                      ref.read(installmentsPaymentMethodFilterProvider.notifier).state = null;
+                      ref
+                              .read(installmentsStatusFilterProvider.notifier)
+                              .state =
+                          null;
+                      ref
+                              .read(
+                                installmentsPaymentMethodFilterProvider
+                                    .notifier,
+                              )
+                              .state =
+                          null;
                     },
                     borderRadius: BorderRadius.circular(6),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.surface : Colors.transparent,
+                        color: isSelected
+                            ? AppColors.surface
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                         boxShadow: isSelected
                             ? [
@@ -132,8 +162,12 @@ class InstallmentsListScreen extends ConsumerWidget {
                         tabs[index],
                         style: AppTypography.body.copyWith(
                           fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected ? AppColors.accent : AppColors.textSecondary,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? AppColors.accent
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ),
@@ -145,7 +179,7 @@ class InstallmentsListScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
 
-        // Filter Bar (Search, Status, Payment Method, Date Range, Reset)
+        // Filter Bar (Search, Project, Status, Payment Method, Date Range, Reset)
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -155,7 +189,9 @@ class InstallmentsListScreen extends ConsumerWidget {
                 width: 240,
                 height: 38,
                 child: TextField(
-                  onChanged: (val) => ref.read(installmentsSearchQueryProvider.notifier).state = val,
+                  onChanged: (val) =>
+                      ref.read(installmentsSearchQueryProvider.notifier).state =
+                          val,
                   decoration: InputDecoration(
                     hintText: selectedTabIndex == 0
                         ? 'Search inst #, status...'
@@ -165,6 +201,49 @@ class InstallmentsListScreen extends ConsumerWidget {
                   ),
                   style: AppTypography.input.copyWith(fontSize: 13),
                 ),
+              ),
+              const SizedBox(width: 12),
+
+              // Project Filter Dropdown
+              projectsAsync.when(
+                data: (projects) => Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value: selectedProjectId,
+                      hint: Text(
+                        'All Projects',
+                        style: AppTypography.secondary,
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('All Projects'),
+                        ),
+                        ...projects.map(
+                          (p) => DropdownMenuItem(
+                            value: p.id,
+                            child: Text('${p.name} (${p.code})'),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) => ref
+                          .read(
+                            installmentsSelectedProjectIdProvider.notifier,
+                          )
+                          .state = val,
+                      style: AppTypography.body.copyWith(fontSize: 13),
+                    ),
+                  ),
+                ),
+                loading: () => const SizedBox.shrink(),
+                error: (e, s) => const SizedBox.shrink(),
               ),
               const SizedBox(width: 12),
 
@@ -183,19 +262,50 @@ class InstallmentsListScreen extends ConsumerWidget {
                     hint: Text('All Statuses', style: AppTypography.secondary),
                     items: selectedTabIndex == 0
                         ? const [
-                            DropdownMenuItem(value: null, child: Text('All Statuses')),
-                            DropdownMenuItem(value: 'PENDING', child: Text('Pending')),
-                            DropdownMenuItem(value: 'PARTIAL', child: Text('Partially Paid')),
-                            DropdownMenuItem(value: 'PAID', child: Text('Paid')),
-                            DropdownMenuItem(value: 'OVERDUE', child: Text('Overdue')),
+                            DropdownMenuItem(
+                              value: null,
+                              child: Text('All Statuses'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'PENDING',
+                              child: Text('Pending'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'PARTIAL',
+                              child: Text('Partially Paid'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'PAID',
+                              child: Text('Paid'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'OVERDUE',
+                              child: Text('Overdue'),
+                            ),
                           ]
                         : const [
-                            DropdownMenuItem(value: null, child: Text('All Statuses')),
-                            DropdownMenuItem(value: 'CLEARED', child: Text('Cleared')),
-                            DropdownMenuItem(value: 'VOIDED', child: Text('Voided')),
-                            DropdownMenuItem(value: 'CASH_WARNING', child: Text('Sec 269ST Warning')),
+                            DropdownMenuItem(
+                              value: null,
+                              child: Text('All Statuses'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'CLEARED',
+                              child: Text('Cleared'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'VOIDED',
+                              child: Text('Voided'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'CASH_WARNING',
+                              child: Text('Sec 269ST Warning'),
+                            ),
                           ],
-                    onChanged: (val) => ref.read(installmentsStatusFilterProvider.notifier).state = val,
+                    onChanged: (val) =>
+                        ref
+                                .read(installmentsStatusFilterProvider.notifier)
+                                .state =
+                            val,
                     style: AppTypography.body.copyWith(fontSize: 13),
                   ),
                 ),
@@ -215,15 +325,30 @@ class InstallmentsListScreen extends ConsumerWidget {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<PaymentMethod?>(
                       value: paymentMethodFilter,
-                      hint: Text('All Payment Methods', style: AppTypography.secondary),
+                      hint: Text(
+                        'All Payment Methods',
+                        style: AppTypography.secondary,
+                      ),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('All Payment Methods')),
-                        ...PaymentMethod.values.map((m) => DropdownMenuItem(
-                              value: m,
-                              child: Text(m.name.toUpperCase()),
-                            )),
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('All Payment Methods'),
+                        ),
+                        ...PaymentMethod.values.map(
+                          (m) => DropdownMenuItem(
+                            value: m,
+                            child: Text(m.name.toUpperCase()),
+                          ),
+                        ),
                       ],
-                      onChanged: (val) => ref.read(installmentsPaymentMethodFilterProvider.notifier).state = val,
+                      onChanged: (val) =>
+                          ref
+                                  .read(
+                                    installmentsPaymentMethodFilterProvider
+                                        .notifier,
+                                  )
+                                  .state =
+                              val,
                       style: AppTypography.body.copyWith(fontSize: 13),
                     ),
                   ),
@@ -249,15 +374,26 @@ class InstallmentsListScreen extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.accent),
+                            const Icon(
+                              Icons.calendar_today_outlined,
+                              size: 14,
+                              color: AppColors.accent,
+                            ),
                             const SizedBox(width: 8),
-                            Text(range.label, style: AppTypography.input.copyWith(fontSize: 13)),
+                            Text(
+                              range.label,
+                              style: AppTypography.input.copyWith(fontSize: 13),
+                            ),
                           ],
                         ),
                       );
                     }).toList(),
                     onChanged: (val) {
-                      if (val != null) ref.read(installmentsDateRangeFilterProvider.notifier).state = val;
+                      if (val != null) {
+                        ref
+                            .read(installmentsDateRangeFilterProvider.notifier)
+                            .state = val;
+                      }
                     },
                     style: AppTypography.body.copyWith(fontSize: 13),
                   ),
@@ -269,7 +405,11 @@ class InstallmentsListScreen extends ConsumerWidget {
               if (isFilterActive)
                 TextButton.icon(
                   onPressed: resetFilters,
-                  icon: const Icon(Icons.clear_all, size: 16, color: AppColors.dangerText),
+                  icon: const Icon(
+                    Icons.clear_all,
+                    size: 16,
+                    color: AppColors.dangerText,
+                  ),
                   label: Text(
                     'Reset Filters',
                     style: AppTypography.secondary.copyWith(
@@ -308,6 +448,7 @@ class InstallmentsListScreen extends ConsumerWidget {
                 ref,
                 selectedTabIndex,
                 searchQuery,
+                selectedProjectId,
                 statusFilter,
                 paymentMethodFilter,
                 dateRangeFilter,
@@ -327,6 +468,7 @@ class InstallmentsListScreen extends ConsumerWidget {
     WidgetRef ref,
     int tabIndex,
     String searchQuery,
+    String? selectedProjectId,
     String? statusFilter,
     PaymentMethod? paymentMethodFilter,
     DashboardDateRange dateRangeFilter,
@@ -336,39 +478,59 @@ class InstallmentsListScreen extends ConsumerWidget {
   ) {
     if (tabIndex == 0) {
       return installmentsAsync.when(
-        loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
+        loading: () =>
+            const CustomDataTable(columns: [], rows: [], isLoading: true),
         error: (err, stack) => Center(
-          child: Text('Error loading installments: $err', style: AppTypography.secondary.copyWith(color: AppColors.dangerText)),
+          child: Text(
+            'Error loading installments: $err',
+            style: AppTypography.secondary.copyWith(
+              color: AppColors.dangerText,
+            ),
+          ),
         ),
         data: (installments) {
           final filtered = installments.where((inst) {
+            if (selectedProjectId != null && inst.projectId != selectedProjectId) {
+              return false;
+            }
             if (!isDateInFilterRange(inst.dueDate, dateRangeFilter)) {
               return false;
             }
             if (statusFilter != null) {
-              final isOverdue = inst.dueDate.isBefore(DateTime.now()) && inst.balanceRemaining > 0;
+              final isOverdue =
+                  inst.dueDate.isBefore(DateTime.now()) &&
+                  inst.balanceRemaining > 0;
               final currentStatus = isOverdue
                   ? 'OVERDUE'
                   : (inst.paidAmount >= inst.dueAmount
-                      ? 'PAID'
-                      : (inst.paidAmount > 0 ? 'PARTIAL' : 'PENDING'));
+                        ? 'PAID'
+                        : (inst.paidAmount > 0 ? 'PARTIAL' : 'PENDING'));
               if (currentStatus != statusFilter) return false;
             }
             if (searchQuery.isNotEmpty) {
               final q = searchQuery.toLowerCase();
               final matchNum = inst.installmentNumber.toString().contains(q);
               final matchDue = inst.dueAmount.toString().contains(q);
-              final matchBuyer = inst.buyerName?.toLowerCase().contains(q) ?? false;
-              final matchProject = inst.projectName?.toLowerCase().contains(q) ?? false;
-              final matchPlot = inst.plotInfo?.toLowerCase().contains(q) ?? false;
-              if (!matchNum && !matchDue && !matchBuyer && !matchProject && !matchPlot) return false;
+              final matchBuyer =
+                  inst.buyerName?.toLowerCase().contains(q) ?? false;
+              final matchProject =
+                  inst.projectName?.toLowerCase().contains(q) ?? false;
+              final matchPlot =
+                  inst.plotInfo?.toLowerCase().contains(q) ?? false;
+              if (!matchNum &&
+                  !matchDue &&
+                  !matchBuyer &&
+                  !matchProject &&
+                  !matchPlot) {
+                return false;
+              }
             }
             return true;
           }).toList();
 
           return CustomDataTable(
             columns: const [
-              DataTableColumn(label: 'Buyer Name', width: 145),
+              DataTableColumn(label: 'Customer / Landowner', width: 185),
               DataTableColumn(label: 'Project', width: 135),
               DataTableColumn(label: 'Plot / Parcel', width: 105),
               DataTableColumn(label: 'Inst #', width: 65),
@@ -377,45 +539,59 @@ class InstallmentsListScreen extends ConsumerWidget {
               DataTableColumn(label: 'Paid Amount', width: 115),
               DataTableColumn(label: 'Outstanding Balance', width: 155),
               DataTableColumn(label: 'Status', width: 100),
-              DataTableColumn(label: 'Actions', width: 85, alignment: Alignment.center),
+              DataTableColumn(
+                label: 'Actions',
+                width: 85,
+                alignment: Alignment.center,
+              ),
             ],
             rows: filtered.map((inst) {
-              final isOverdue = inst.dueDate.isBefore(DateTime.now()) && inst.balanceRemaining > 0;
+              final isOverdue =
+                  inst.dueDate.isBefore(DateTime.now()) &&
+                  inst.balanceRemaining > 0;
               final statusText = isOverdue
                   ? 'OVERDUE'
                   : (inst.paidAmount >= inst.dueAmount
-                      ? 'PAID'
-                      : (inst.paidAmount > 0 ? 'PARTIAL' : 'PENDING'));
+                        ? 'PAID'
+                        : (inst.paidAmount > 0 ? 'PARTIAL' : 'PENDING'));
 
               return [
                 Text(
                   inst.buyerName ?? '—',
-                  style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTypography.tableCell.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(inst.projectName ?? '—', style: AppTypography.tableCell),
+                Text(inst.plotInfo ?? '—', style: AppTypography.secondary),
+                Text(
+                  '#${inst.installmentNumber}',
+                  style: AppTypography.tableCell.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
-                  inst.projectName ?? '—',
-                  style: AppTypography.tableCell,
-                ),
-                Text(
-                  inst.plotInfo ?? '—',
+                  DateFormat('dd MMM yyyy').format(inst.dueDate),
                   style: AppTypography.secondary,
                 ),
-                Text('#${inst.installmentNumber}', style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.bold)),
-                Text(DateFormat('dd MMM yyyy').format(inst.dueDate), style: AppTypography.secondary),
                 Text(
                   CalculationEngine.formatCurrency(inst.dueAmount),
                   style: AppTypography.amountMedium,
                 ),
                 Text(
                   CalculationEngine.formatCurrency(inst.paidAmount),
-                  style: AppTypography.amountMedium.copyWith(color: AppColors.successText),
+                  style: AppTypography.amountMedium.copyWith(
+                    color: AppColors.successText,
+                  ),
                 ),
                 Row(
                   children: [
                     Text(
                       CalculationEngine.formatCurrency(inst.balanceRemaining),
                       style: AppTypography.amountMedium.copyWith(
-                        color: inst.balanceRemaining > 0 ? AppColors.warningText : AppColors.textPrimary,
+                        color: inst.balanceRemaining > 0
+                            ? AppColors.warningText
+                            : AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -427,16 +603,22 @@ class InstallmentsListScreen extends ConsumerWidget {
                         FormulaTermDefinition(
                           term: 'Scheduled Due Amount',
                           definition: 'Agreed installment payment value.',
-                          valueDisplay: CalculationEngine.formatCurrency(inst.dueAmount),
+                          valueDisplay: CalculationEngine.formatCurrency(
+                            inst.dueAmount,
+                          ),
                         ),
                         FormulaTermDefinition(
                           term: 'Cleared Paid Amount',
-                          definition: 'Total cleared non-voided receipts for this installment.',
-                          valueDisplay: CalculationEngine.formatCurrency(inst.paidAmount),
+                          definition:
+                              'Total cleared non-voided receipts for this installment.',
+                          valueDisplay: CalculationEngine.formatCurrency(
+                            inst.paidAmount,
+                          ),
                         ),
                       ],
-                      calculatedResultDisplay:
-                          CalculationEngine.formatCurrency(inst.balanceRemaining),
+                      calculatedResultDisplay: CalculationEngine.formatCurrency(
+                        inst.balanceRemaining,
+                      ),
                     ),
                   ],
                 ),
@@ -444,17 +626,25 @@ class InstallmentsListScreen extends ConsumerWidget {
                 if (inst.balanceRemaining > 0)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       minimumSize: Size.zero,
                     ),
-                    onPressed: () => PaymentRecordDialog.show(
-                      context,
-                      installment: inst,
+                    onPressed: () =>
+                        PaymentRecordDialog.show(context, installment: inst),
+                    child: const Text(
+                      'Pay Now',
+                      style: TextStyle(fontSize: 12),
                     ),
-                    child: const Text('Pay Now', style: TextStyle(fontSize: 12)),
                   )
                 else
-                  const Icon(Icons.check_circle, color: AppColors.successText, size: 20),
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.successText,
+                    size: 20,
+                  ),
               ];
             }).toList(),
             emptyMessage: 'No installments schedule recorded.',
@@ -463,31 +653,59 @@ class InstallmentsListScreen extends ConsumerWidget {
       );
     } else {
       return transactionsAsync.when(
-        loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
+        loading: () =>
+            const CustomDataTable(columns: [], rows: [], isLoading: true),
         error: (err, stack) => Center(
-          child: Text('Error loading transactions audit: $err', style: AppTypography.secondary.copyWith(color: AppColors.dangerText)),
+          child: Text(
+            'Error loading transactions audit: $err',
+            style: AppTypography.secondary.copyWith(
+              color: AppColors.dangerText,
+            ),
+          ),
         ),
         data: (transactions) {
           final filtered = transactions.where((tx) {
+            if (selectedProjectId != null && tx.projectId != selectedProjectId) {
+              return false;
+            }
             if (!isDateInFilterRange(tx.paymentDate, dateRangeFilter)) {
               return false;
             }
-            if (paymentMethodFilter != null && tx.paymentMethod != paymentMethodFilter) {
+            if (paymentMethodFilter != null &&
+                tx.paymentMethod != paymentMethodFilter) {
               return false;
             }
             if (statusFilter != null) {
-              if (statusFilter == 'CLEARED' && (tx.isVoided || tx.isCashOverLimit)) return false;
-              if (statusFilter == 'VOIDED' && !tx.isVoided) return false;
-              if (statusFilter == 'CASH_WARNING' && !tx.isCashOverLimit) return false;
+              if (statusFilter == 'CLEARED' &&
+                  (tx.isVoided || tx.isCashOverLimit)) {
+                return false;
+              }
+              if (statusFilter == 'VOIDED' && !tx.isVoided) {
+                return false;
+              }
+              if (statusFilter == 'CASH_WARNING' && !tx.isCashOverLimit) {
+                return false;
+              }
             }
             if (searchQuery.isNotEmpty) {
               final q = searchQuery.toLowerCase();
               final matchId = tx.id.toLowerCase().contains(q);
-              final matchRef = tx.referenceNumber?.toLowerCase().contains(q) ?? false;
-              final matchMethod = tx.paymentMethod.name.toLowerCase().contains(q);
-              final matchBuyer = tx.buyerName?.toLowerCase().contains(q) ?? false;
-              final matchProject = tx.projectName?.toLowerCase().contains(q) ?? false;
-              if (!matchId && !matchRef && !matchMethod && !matchBuyer && !matchProject) return false;
+              final matchRef =
+                  tx.referenceNumber?.toLowerCase().contains(q) ?? false;
+              final matchMethod = tx.paymentMethod.name.toLowerCase().contains(
+                q,
+              );
+              final matchBuyer =
+                  tx.buyerName?.toLowerCase().contains(q) ?? false;
+              final matchProject =
+                  tx.projectName?.toLowerCase().contains(q) ?? false;
+              if (!matchId &&
+                  !matchRef &&
+                  !matchMethod &&
+                  !matchBuyer &&
+                  !matchProject) {
+                return false;
+              }
             }
             return true;
           }).toList();
@@ -495,7 +713,7 @@ class InstallmentsListScreen extends ConsumerWidget {
           return CustomDataTable(
             columns: const [
               DataTableColumn(label: 'Tx ID', width: 100),
-              DataTableColumn(label: 'Buyer Name', width: 145),
+              DataTableColumn(label: 'Customer / Landowner', width: 185),
               DataTableColumn(label: 'Project', width: 135),
               DataTableColumn(label: 'Payment Date', width: 110),
               DataTableColumn(label: 'Method', width: 95),
@@ -503,26 +721,52 @@ class InstallmentsListScreen extends ConsumerWidget {
               DataTableColumn(label: 'Paid Amount', width: 115),
               DataTableColumn(label: 'Sec 269ST Compliance', width: 165),
               DataTableColumn(label: 'Status', width: 95),
-              DataTableColumn(label: 'Actions', width: 85, alignment: Alignment.center),
+              DataTableColumn(
+                label: 'Actions',
+                width: 85,
+                alignment: Alignment.center,
+              ),
             ],
             rows: filtered.map((tx) {
               return [
-                Text('#${tx.id.substring(0, tx.id.length > 8 ? 8 : tx.id.length)}', style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.bold)),
-                Text(tx.buyerName ?? '—', style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  '#${tx.id.substring(0, tx.id.length > 8 ? 8 : tx.id.length)}',
+                  style: AppTypography.tableCell.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  tx.buyerName ?? '—',
+                  style: AppTypography.tableCell.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 Text(tx.projectName ?? '—', style: AppTypography.tableCell),
-                Text(DateFormat('dd MMM yyyy').format(tx.paymentDate), style: AppTypography.secondary),
-                Text(tx.paymentMethod.name.toUpperCase(), style: AppTypography.tableCell),
+                Text(
+                  DateFormat('dd MMM yyyy').format(tx.paymentDate),
+                  style: AppTypography.secondary,
+                ),
+                Text(
+                  tx.paymentMethod.name.toUpperCase(),
+                  style: AppTypography.tableCell,
+                ),
                 Text(tx.referenceNumber ?? '—', style: AppTypography.secondary),
                 Text(
                   CalculationEngine.formatCurrency(tx.amount),
                   style: AppTypography.amountMedium.copyWith(
-                    color: tx.isVoided ? AppColors.textDisabled : AppColors.successText,
+                    color: tx.isVoided
+                        ? AppColors.textDisabled
+                        : AppColors.successText,
                     decoration: tx.isVoided ? TextDecoration.lineThrough : null,
                   ),
                 ),
                 StatusBadge(
-                  label: tx.isCashOverLimit ? 'VIOLATION (>= 2 Lakh)' : 'COMPLIANT (< 2 Lakh)',
-                  type: tx.isCashOverLimit ? BadgeType.danger : BadgeType.success,
+                  label: tx.isCashOverLimit
+                      ? 'VIOLATION (>= 2 Lakh)'
+                      : 'COMPLIANT (< 2 Lakh)',
+                  type: tx.isCashOverLimit
+                      ? BadgeType.danger
+                      : BadgeType.success,
                 ),
                 StatusBadge(
                   label: tx.isVoided ? 'VOIDED' : 'CLEARED',
@@ -530,14 +774,24 @@ class InstallmentsListScreen extends ConsumerWidget {
                 ),
                 if (!tx.isVoided && currentRole.isAdmin)
                   IconButton(
-                    icon: const Icon(Icons.block_outlined, color: AppColors.dangerText, size: 18),
+                    icon: const Icon(
+                      Icons.block_outlined,
+                      color: AppColors.dangerText,
+                      size: 18,
+                    ),
                     tooltip: 'Void Transaction (Sec 269ST / Error)',
-                    onPressed: () => VoidTransactionDialog.show(context, transaction: tx),
+                    onPressed: () =>
+                        VoidTransactionDialog.show(context, transaction: tx),
                   )
                 else if (tx.isVoided)
                   Tooltip(
-                    message: 'Voided by ${tx.createdBy}: ${tx.voidReason ?? 'No reason given'}',
-                    child: const Icon(Icons.info_outline, color: AppColors.textSecondary, size: 18),
+                    message:
+                        'Voided by ${tx.createdBy}: ${tx.voidReason ?? 'No reason given'}',
+                    child: const Icon(
+                      Icons.info_outline,
+                      color: AppColors.textSecondary,
+                      size: 18,
+                    ),
                   )
                 else
                   Text('Non-Admin', style: AppTypography.secondary),

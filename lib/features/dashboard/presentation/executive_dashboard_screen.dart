@@ -220,56 +220,77 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   // Quick Action Buttons & Plot Inventory Progress
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Quick Actions Box
-                      Expanded(
-                        flex: 5,
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Quick Actions & Workflows', style: AppTypography.cardTitle),
-                              const SizedBox(height: 14),
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => ProjectFormDialog.show(context),
-                                    icon: const Icon(Icons.add_business, size: 18),
-                                    label: const Text('Add Project'),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Quick Actions Box
+                        Expanded(
+                          flex: 5,
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Quick Actions & Workflows', style: AppTypography.cardTitle),
+                                const SizedBox(height: 16),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              onPressed: () => ProjectFormDialog.show(context),
+                                              icon: const Icon(Icons.add_business, size: 18),
+                                              label: const Text('Add Project'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                                              onPressed: () => SaleAgreementDialog.show(context),
+                                              icon: const Icon(Icons.handshake_outlined, size: 18),
+                                              label: const Text('New Sale Agreement'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              onPressed: () => PaymentRecordDialog.show(context),
+                                              icon: const Icon(Icons.add_card, size: 18),
+                                              label: const Text('Record Payment'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: OutlinedButton.icon(
+                                              onPressed: () => context.go(AppRoutes.profitLoss),
+                                              icon: const Icon(Icons.trending_up, size: 18),
+                                              label: const Text('View P&L Ledger'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-                                    onPressed: () => SaleAgreementDialog.show(context),
-                                    icon: const Icon(Icons.handshake_outlined, size: 18),
-                                    label: const Text('New Sale Agreement'),
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: () => PaymentRecordDialog.show(context),
-                                    icon: const Icon(Icons.add_card, size: 18),
-                                    label: const Text('Record Payment'),
-                                  ),
-                                  OutlinedButton.icon(
-                                    onPressed: () => context.go(AppRoutes.profitLoss),
-                                    icon: const Icon(Icons.trending_up, size: 18),
-                                    label: const Text('View P&L Ledger'),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
+                        const SizedBox(width: 16),
 
                       // Plot Inventory Breakdown Card
                       Expanded(
@@ -354,8 +375,9 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                ],
-              );
+                ),
+              ],
+            );
             },
           ),
           const SizedBox(height: 24),
@@ -492,7 +514,10 @@ class _ExecutiveMetricCard extends StatelessWidget {
 }
 
 Widget _miniLandStat(String label, double sqFt, {Color? color}) {
-  final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
+  final totalKatta = LandUnitConverter.sqFtToKatta(sqFt);
+  final kattaStr = totalKatta == totalKatta.roundToDouble()
+      ? totalKatta.toInt().toString()
+      : double.parse(totalKatta.toStringAsFixed(1)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
   return Column(
     children: [
       Text(label, style: AppTypography.secondary.copyWith(fontSize: 10)),
@@ -502,7 +527,7 @@ Widget _miniLandStat(String label, double sqFt, {Color? color}) {
         style: AppTypography.body.copyWith(fontSize: 11, fontWeight: FontWeight.bold, color: color ?? AppColors.textPrimary),
       ),
       Text(
-        '(${kd.katta}K ${kd.dhur}D)',
+        '($kattaStr Kattha)',
         style: AppTypography.secondary.copyWith(fontSize: 10, color: AppColors.textMuted),
       ),
     ],
@@ -573,29 +598,29 @@ class _ProjectPortfolioCard extends ConsumerWidget {
               }
 
               final remainingAreaSqFt = (proj.landAreaSqFt - soldAreaSqFt).clamp(0.0, double.infinity);
-              final totalKattaDhur = LandUnitConverter.sqFtToKattaDhur(proj.landAreaSqFt);
-              final soldKattaDhur = LandUnitConverter.sqFtToKattaDhur(soldAreaSqFt);
-              final remKattaDhur = LandUnitConverter.sqFtToKattaDhur(remainingAreaSqFt);
+              final totalKatthaStr = LandUnitConverter.sqFtToKatta(proj.landAreaSqFt).toStringAsFixed(2);
+              final soldKatthaStr = LandUnitConverter.sqFtToKatta(soldAreaSqFt).toStringAsFixed(2);
+              final remKatthaStr = LandUnitConverter.sqFtToKatta(remainingAreaSqFt).toStringAsFixed(2);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Land Bought: ${CalculationEngine.indianNumberFormat.format(proj.landAreaSqFt.round())} Sq.Ft. (${totalKattaDhur.katta}K ${totalKattaDhur.dhur}D)',
+                    'Land Bought: ${CalculationEngine.indianNumberFormat.format(proj.landAreaSqFt.round())} Sq.Ft. ($totalKatthaStr Kattha)',
                     style: AppTypography.secondary.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Row(
                     children: [
                       Text(
-                        'Sold: ${CalculationEngine.indianNumberFormat.format(soldAreaSqFt.round())} Sq.Ft. (${soldKattaDhur.katta}K ${soldKattaDhur.dhur}D)',
+                        'Sold: ${CalculationEngine.indianNumberFormat.format(soldAreaSqFt.round())} Sq.Ft. ($soldKatthaStr Kattha)',
                         style: AppTypography.secondary.copyWith(fontSize: 11, color: AppColors.successText, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Rem: ${CalculationEngine.indianNumberFormat.format(remainingAreaSqFt.round())} Sq.Ft. (${remKattaDhur.katta}K ${remKattaDhur.dhur}D)',
+                    'Rem: ${CalculationEngine.indianNumberFormat.format(remainingAreaSqFt.round())} Sq.Ft. ($remKatthaStr Kattha)',
                     style: AppTypography.secondary.copyWith(fontSize: 11, color: AppColors.accent, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),

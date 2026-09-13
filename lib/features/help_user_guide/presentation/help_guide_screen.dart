@@ -65,21 +65,76 @@ class HelpTopicsData {
     ),
     HelpTopic(
       id: 'buyer_sales',
-      title: 'Recording Buyer Sales & Agreements',
+      title: 'Recording Customer Sales & Agreements',
       category: 'Sales',
       description:
-          'Book sales agreements with buyers, defining payment plans (outright cash or installment plan).',
+          'Book sales agreements with customers, defining payment plans (outright cash or installment plan).',
       steps:
-          '1. Navigate to Buyers & Sales screen.\n2. Click "+ New Sale Agreement".\n3. Select Buyer, Project, and Plot.\n4. Choose payment plan (Installment vs Full Cash).\n5. Generate official PDF agreement.',
+          '1. Navigate to Customers screen.\n2. Click "+ New Sale Agreement".\n3. Select Customer, Project, and Plot.\n4. Choose payment plan (Installment vs Full Cash).\n5. Generate official PDF agreement.',
       whyItMatters:
-          'Locks plot availability and establishes buyer receivable schedules for cash flow tracking.',
+          'Locks plot availability and establishes customer receivable schedules for cash flow tracking.',
+    ),
+    HelpTopic(
+      id: 'landowners_guide',
+      title: 'Landowners & Land Purchase Agreements',
+      category: 'Land Procurement',
+      description:
+          'Manage landowner KYC profiles (PAN, Phone, Address) and record land acquisition agreements with installment schedules.',
+      steps:
+          '1. Go to Landowners screen.\n2. Click "+ Add Landowner" and enter PAN & Contact details.\n3. Click "+ Purchase Agreement" to link a project with agreed total purchase price.\n4. Click any landowner to view the complete profile and print the Purchase Agreement PDF.',
+      whyItMatters:
+          'Maintains legal land title history and feeds into Landowner Payables for outstanding dues tracking.',
+    ),
+    HelpTopic(
+      id: 'expenses_tracking',
+      title: 'Project Expenses & Site Development Costs',
+      category: 'Expenses',
+      description:
+          'Record all land development, registry, legal, brokerage, fencing, and operational expenses incurred on projects.',
+      steps:
+          '1. Navigate to Expenses screen.\n2. Click "+ Add Expense".\n3. Select Project, Category (Registration, Development, Brokerage, Legal, etc.), Amount, and Vendor.\n4. Choose if expense is Capitalized into land cost.\n5. Filter by Project or Date range.',
+      whyItMatters:
+          'Capitalized expenses directly increase total project cost, ensuring accurate Net Profit calculation.',
+    ),
+    HelpTopic(
+      id: 'installments_payments',
+      title: 'Installment Collection & Official Payment Receipts',
+      category: 'Collections',
+      description:
+          'Collect customer installment dues via Bank Transfer, Cheque, DD, Online, or Cash, and generate branded payment receipts.',
+      steps:
+          '1. Open Installments & Payments screen.\n2. Locate the customer installment schedule.\n3. Click "Collect Payment" or "Record Transaction".\n4. Enter payment mode, reference/UTR/cheque number, and amount.\n5. Generate and print the official Payment Receipt PDF.',
+      whyItMatters:
+          'Auto-updates customer outstanding balance and provides verifiable proof of payment to buyers.',
+    ),
+    HelpTopic(
+      id: 'receivables_payables',
+      title: 'Receivables, Payables & Cash Flow Ledger',
+      category: 'Finance Ledger',
+      description:
+          'Real-time aging analysis of overdue customer balances, pending landowner purchase dues, and net project cash flow position.',
+      steps:
+          '1. Open Receivables & Payables screen.\n2. Tab 1 (Customer Receivables): Review overdue installments categorized by aging buckets (0-30, 31-60, 61-90, 90+ Days).\n3. Tab 2 (Landowner Payables): View total agreed land cost vs paid amount and balance payable.\n4. Tab 3 (Project Cash Flow): Audit cash inflows vs outflows.',
+      whyItMatters:
+          'Prevents liquidity shortages and ensures timely collection follow-ups with customers.',
+    ),
+    HelpTopic(
+      id: 'statutory_compliance',
+      title: 'Indian Statutory Rules (Section 269ST & 194-IA TDS)',
+      category: 'Statutory Compliance',
+      description:
+          'Built-in compliance checks under Income Tax Act for property transactions in India.',
+      steps:
+          '1. Section 269ST (Cash Limit): Cash transactions >= ₹2,00,000 in a single day or event trigger a statutory warning/block.\n2. Section 194-IA (TDS on Land): For property transactions exceeding ₹50,00,000 (₹50 Lakhs), 1% TDS deduction is automatically highlighted.\n3. DLC / Circle Rate Check: Warns if sale price is below the government circle rate.',
+      whyItMatters:
+          'Protects management from severe tax penalties and ensures full legal compliance under Indian law.',
     ),
     HelpTopic(
       id: 'investor_funding',
       title: 'Investor Capital & Equity Tracking',
       category: 'Investors (Admin Only)',
       description:
-          'Track investor equity capital contributions per project and calculate automated ROI distributions.',
+          'Track investor equity capital contributions per project and calculate automated ROR (Rate of Return) distributions.',
       steps:
           '1. Go to Investors screen.\n2. Click "+ Record Investment".\n3. Link investor to project, enter capital amount, and upload investment agreement.\n4. Equity % auto-calculates.',
       whyItMatters:
@@ -88,12 +143,12 @@ class HelpTopicsData {
     ),
     HelpTopic(
       id: 'pnl_settlement',
-      title: 'Profit & Loss & ROI Settlement',
+      title: 'Profit & Loss & ROR Settlement',
       category: 'Finance (Admin Only)',
       description:
           'Audit gross project profit margins and execute investor profit disbursements.',
       steps:
-          '1. Open Profit & Loss screen.\n2. Review Gross Project Profit (Booked Sales - Land & Capitalized Cost).\n3. Switch to Investor ROI Settlements tab.\n4. Click "Disburse" to process investor payouts.',
+          '1. Open Profit & Loss screen.\n2. Review Gross Project Profit (Booked Sales - Land & Capitalized Cost).\n3. Switch to Investor ROR Settlements tab.\n4. Click "Disburse" to process investor payouts.',
       whyItMatters:
           'Ensures mathematically verifiable payout calculations based on equity share.',
       adminOnly: true,

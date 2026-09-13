@@ -1,27 +1,33 @@
 library;
 
 /// Centralized Land Measurement Unit Conversion Engine.
-/// 
-/// Supported Land Units & Configurable Kishanganj / Bihar Conversion Conventions:
-/// - Square Feet & Inches (1 Sq Ft = 144 Sq Inches, 1 Ft = 12 Inches)
-/// - Katta & Dhur (Default: 1 Katta = 20 Dhur = 1,361.25 Sq Ft; 1 Dhur = 68.0625 Sq Ft)
-/// - Decimal (Default: 1 Decimal = 435.6 Sq Ft = 1/100 Acre)
-/// - Bigha (Default: 1 Bigha = 20 Katta = 27,225 Sq Ft)
-/// - Acre (1 Acre = 100 Decimal = 43,560 Sq Ft)
+///
+/// Official Conversion Standard:
+/// - 1 Kattha   = 1,125 sq ft
+/// - 1 Dhur     = 56.25 sq ft
+/// - 20 Dhur    = 1 Kattha
+/// - 1 Decimal  = 450 sq ft
+/// - 2.5 Decimal = 1 Kattha
+/// - 1 Bigha    = 22,500 sq ft
+/// - 20 Kattha  = 1 Bigha
+/// - 1 Acre     = 43,560 sq ft
+/// - 1 sq meter = 10.7639 sq ft
 
 enum LandInputUnitMode {
   sqFtInches, // Sq. Feet & Sq. Inches
-  kattaDhur,  // Katta & Dhur
-  decimal,    // Decimal
+  kattaDhur, // Katta & Dhur
+  decimal, // Decimal
   dimensions, // Length (Ft+In) x Breadth (Ft+In)
 }
 
 class LandUnitConverter {
-  // Configurable conversion factors (Default: Standard Kishanganj / Bihar legal convention)
-  static double sqFtPerKatta = 1361.25;
-  static double sqFtPerDhur = 68.0625; // sqFtPerKatta / 20
-  static double sqFtPerDecimal = 435.6;
-  static double sqFtPerBigha = 27225.0; // 20 * sqFtPerKatta
+  // Configurable conversion factors (1 Kattha = 1,125 Sq Ft | 1 Kattha = 2.5 Decimal)
+  static double sqFtPerKatta = 1125.0;
+  static double sqFtPerDhur = 56.25; // sqFtPerKatta / 20 = 1125 / 20 = 56.25
+  static double sqFtPerDecimal =
+      450.0; // 1 Kattha / 2.5 Decimal = 1125 / 2.5 = 450.0
+  static double sqFtPerBigha =
+      22500.0; // 20 * sqFtPerKatta = 20 * 1125 = 22500.0
   static double sqFtPerAcre = 43560.0;
   static double sqFtPerSqMeter = 10.7639;
 
@@ -34,6 +40,9 @@ class LandUnitConverter {
     if (customSqFtPerKatta != null && customSqFtPerKatta > 0) {
       sqFtPerKatta = customSqFtPerKatta;
       sqFtPerDhur = customSqFtPerKatta / 20.0;
+      if (customSqFtPerDecimal == null) {
+        sqFtPerDecimal = customSqFtPerKatta / 2.5;
+      }
     }
     if (customSqFtPerDecimal != null && customSqFtPerDecimal > 0) {
       sqFtPerDecimal = customSqFtPerDecimal;
@@ -56,10 +65,7 @@ class LandUnitConverter {
     final totalKatta = sqFt / sqFtPerKatta;
     final katta = totalKatta.floor();
     final remainingDhur = (totalKatta - katta) * 20.0;
-    return (
-      katta: katta,
-      dhur: double.parse(remainingDhur.toStringAsFixed(2)),
-    );
+    return (katta: katta, dhur: double.parse(remainingDhur.toStringAsFixed(2)));
   }
 
   /// Converts Decimal to Square Feet
@@ -74,11 +80,52 @@ class LandUnitConverter {
     return double.parse((sqFt / sqFtPerDecimal).toStringAsFixed(3));
   }
 
+  /// Converts Kattha to Decimal (1 Kattha = 2.5 Decimal)
+  static double kattaToDecimal(double katta) {
+    if (katta <= 0) return 0.0;
+    return double.parse((katta * 2.5).toStringAsFixed(3));
+  }
+
+  /// Converts Decimal to Kattha (2.5 Decimal = 1 Kattha)
+  static double decimalToKatta(double decimal) {
+    if (decimal <= 0) return 0.0;
+    return double.parse((decimal / 2.5).toStringAsFixed(3));
+  }
+
+  /// Converts Kattha & Dhur to Decimal (1 Kattha = 20 Dhur = 2.5 Decimal, 1 Dhur = 0.125 Decimal)
+  static double kattaDhurToDecimal(double katta, double dhur) {
+    final k = katta.isNegative ? 0.0 : katta;
+    final d = dhur.isNegative ? 0.0 : dhur;
+    return double.parse(((k + (d / 20.0)) * 2.5).toStringAsFixed(3));
+  }
+
   /// Converts Sq Feet and Sq Inches to total Sq Feet
   static double sqFtInchesToSqFt(double sqFt, double sqInches) {
     final f = sqFt.isNegative ? 0.0 : sqFt;
     final i = sqInches.isNegative ? 0.0 : sqInches;
     return f + (i / 144.0);
+  }
+
+  /// Converts decimal feet (e.g. 405.5 ft) to Feet + Inches breakdown (e.g. 405 ft 6 in)
+  /// Whole feet = 405 ft, Remaining = 0.5 ft -> 0.5 * 12 = 6 inches
+  static ({int feet, double inches}) decimalFeetToFeetInches(
+    double decimalFeet,
+  ) {
+    if (decimalFeet <= 0) return (feet: 0, inches: 0.0);
+    final wholeFeet = decimalFeet.floor();
+    final remainingFraction = decimalFeet - wholeFeet;
+    final inches = double.parse((remainingFraction * 12.0).toStringAsFixed(2));
+    if (inches >= 12.0) {
+      return (feet: wholeFeet + 1, inches: 0.0);
+    }
+    return (feet: wholeFeet, inches: inches);
+  }
+
+  /// Converts Feet + Inches to normalized decimal Feet (e.g. 405 ft 6 in -> 405.5 ft)
+  static double feetInchesToDecimalFeet(double feet, double inches) {
+    final f = feet.isNegative ? 0.0 : feet;
+    final i = inches.isNegative ? 0.0 : inches;
+    return f + (i / 12.0);
   }
 
   /// Converts Length & Breadth in (Feet, Inches) to total Sq Feet
@@ -127,7 +174,8 @@ class LandUnitConverter {
   }) {
     String basis;
     if (originalUnit.toLowerCase().contains('katta')) {
-      basis = '1 Katta = ${sqFtPerKatta.toStringAsFixed(2)} Sq. Ft. (1 Dhur = ${sqFtPerDhur.toStringAsFixed(2)} Sq. Ft.)';
+      basis =
+          '1 Katta = ${sqFtPerKatta.toStringAsFixed(2)} Sq. Ft. (1 Dhur = ${sqFtPerDhur.toStringAsFixed(2)} Sq. Ft.)';
     } else if (originalUnit.toLowerCase().contains('dec')) {
       basis = '1 Decimal = ${sqFtPerDecimal.toStringAsFixed(2)} Sq. Ft.';
     } else if (originalUnit.toLowerCase().contains('bigha')) {
@@ -181,6 +229,8 @@ class LandUnitConverter {
         return sqFt / sqFtPerBigha;
       case 'Kattha':
       case 'Katta':
+      case 'Dimensions':
+      case 'Dimensions (L × B in Ft & In)':
         return sqFt / sqFtPerKatta;
       case 'Dhur':
         return sqFt / sqFtPerDhur;
@@ -190,11 +240,26 @@ class LandUnitConverter {
         return sqFt / sqFtPerSqMeter;
       case 'Square Feet':
       default:
+        if (unit.toLowerCase().contains('dimension')) {
+          return sqFt / sqFtPerKatta;
+        }
         return sqFt;
     }
   }
 
-  /// Format land measurement as a human readable string preserving original unit and structured data
+  /// Converts Square Feet to total Kattha (decimal value, e.g. 1125 sq ft -> 1.0 Kattha, 129600 sq ft -> 115.2 Kattha)
+  static double sqFtToKatta(double sqFt) {
+    if (sqFt <= 0) return 0.0;
+    return double.parse((sqFt / sqFtPerKatta).toStringAsFixed(3));
+  }
+
+  /// Converts Square Feet to total Dhur (e.g. 56.25 sq ft -> 1.0 Dhur, 1125 sq ft -> 20.0 Dhur)
+  static double sqFtToDhur(double sqFt) {
+    if (sqFt <= 0) return 0.0;
+    return double.parse((sqFt / sqFtPerDhur).toStringAsFixed(3));
+  }
+
+  /// Format land measurement as a human readable string preserving original unit
   static String formatLandMeasurement({
     required double areaSqFt,
     required String measurementUnit,
@@ -202,74 +267,95 @@ class LandUnitConverter {
     double? kattaValue,
     double? dhurValue,
   }) {
-    if (measurementUnit == 'Kattha + Dhur' || measurementUnit == 'Katta + Dhur') {
-      if (kattaValue != null || dhurValue != null) {
-        final k = (kattaValue ?? 0.0);
-        final d = (dhurValue ?? 0.0);
-        final kStr = k == k.roundToDouble() ? k.toInt().toString() : k.toString();
-        final dStr = d == d.roundToDouble() ? d.toInt().toString() : d.toString();
-        if (k > 0 && d > 0) {
-          return '$kStr Kattha + $dStr Dhur';
-        } else if (k > 0) {
-          return '$kStr Kattha';
-        } else if (d > 0) {
-          return '$dStr Dhur';
-        } else {
-          return '0 Kattha + 0 Dhur';
-        }
-      }
-      final kd = sqFtToKattaDhur(areaSqFt);
-      final dStr = kd.dhur == kd.dhur.roundToDouble() ? kd.dhur.toInt().toString() : kd.dhur.toString();
-      return '${kd.katta} Kattha + $dStr Dhur';
-    }
-
     final val = displayArea ?? sqFtToUnitValue(areaSqFt, measurementUnit);
     final valStr = val == val.roundToDouble()
         ? val.toInt().toString()
-        : double.parse(val.toStringAsFixed(2)).toString().replaceAll(RegExp(r'\.0+$'), '');
+        : double.parse(
+            val.toStringAsFixed(2),
+          ).toString().replaceAll(RegExp(r'\.0+$'), '');
 
     switch (measurementUnit) {
-      case 'Acre':
-        return '$valStr Acre';
-      case 'Bigha':
-        return '$valStr Bigha';
+      case 'Square Feet':
+      case 'Sq Ft':
+      case 'Sq. Ft.':
+        return '$valStr Sq Ft';
+      case 'Dimensions':
+      case 'Dimensions (L × B in Ft & In)':
+        return '$valStr Kattha';
+      case 'Square Yards':
+      case 'Sq Yards':
+      case 'Sq Yds':
+        return '$valStr Sq Yds';
+      case 'Square Meter':
+      case 'Sq Meter':
+      case 'Sq M':
+        return '$valStr Sq M';
       case 'Kattha':
       case 'Katta':
         return '$valStr Kattha';
       case 'Dhur':
         return '$valStr Dhur';
       case 'Decimal':
+      case 'Dec':
         return '$valStr Decimal';
-      case 'Square Meter':
-        return '$valStr Sq M';
-      case 'Square Feet':
+      case 'Acre':
+        return '$valStr Acre';
+      case 'Bigha':
+        return '$valStr Bigha';
       default:
-        return '$valStr Sq Ft';
+        if (measurementUnit.toLowerCase().contains('dimension')) {
+          return '$valStr Kattha';
+        }
+        return '$valStr $measurementUnit';
     }
   }
 
-  /// Formatted multi-unit summary readout (e.g. "1,361.3 Sq.Ft | 1 Kattha 0.0 Dhur | 3.125 Dec")
+  /// Formatted multi-unit summary readout (Square Feet • Kattha • Dhur • Decimal)
   static String formatAllUnits(double sqFt) {
-    if (sqFt <= 0) return '0 Sq.Ft | 0 Kattha 0 Dhur | 0 Decimal';
+    if (sqFt <= 0) return '0 Sq.Ft  •  0 Kattha  •  0 Dhur  •  0 Dec';
 
-    final kd = sqFtToKattaDhur(sqFt);
+    final totalKatta = sqFtToKatta(sqFt);
+    final totalKattaStr = totalKatta == totalKatta.roundToDouble()
+        ? totalKatta.toInt().toString()
+        : double.parse(totalKatta.toStringAsFixed(3))
+              .toString()
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
+    final totalDhur = sqFtToDhur(sqFt);
+    final totalDhurStr = totalDhur == totalDhur.roundToDouble()
+        ? totalDhur.toInt().toString()
+        : double.parse(totalDhur.toStringAsFixed(2))
+              .toString()
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
     final dec = sqFtToDecimal(sqFt);
-    final sqFtFormatted = sqFt.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+    final sqFtFormatted = sqFt
+        .toStringAsFixed(1)
+        .replaceAll(RegExp(r'\.0$'), '');
 
-    return '$sqFtFormatted Sq.Ft  •  ${kd.katta} Kattha ${kd.dhur} Dhur  •  $dec Dec';
+    return '$sqFtFormatted Sq.Ft  •  $totalKattaStr Kattha  •  $totalDhurStr Dhur  •  $dec Dec';
   }
 
   /// Detailed human readable multi-line summary string
   static String formatDetailedSummary(double sqFt) {
     if (sqFt <= 0) return '0 Sq. Ft.';
 
-    final kd = sqFtToKattaDhur(sqFt);
+    final totalKatta = sqFtToKatta(sqFt);
+    final totalKattaStr = totalKatta == totalKatta.roundToDouble()
+        ? totalKatta.toInt().toString()
+        : double.parse(totalKatta.toStringAsFixed(3))
+              .toString()
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
+    final totalDhur = sqFtToDhur(sqFt);
+    final totalDhurStr = totalDhur == totalDhur.roundToDouble()
+        ? totalDhur.toInt().toString()
+        : double.parse(totalDhur.toStringAsFixed(2))
+              .toString()
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
     final dec = sqFtToDecimal(sqFt);
-    final bigha = sqFtToBigha(sqFt);
-    final sqM = (sqFt / sqFtPerSqMeter).toStringAsFixed(1);
 
-    return '${sqFt.toStringAsFixed(1)} Sq. Ft. '
-        '(${kd.katta} Kattha ${kd.dhur} Dhur | $dec Decimal | $bigha Bigha | $sqM Sq. M)';
+    return '${sqFt.toStringAsFixed(1)} Sq. Ft. ($totalKattaStr Kattha | $totalDhurStr Dhur | $dec Decimal)';
   }
 }
-

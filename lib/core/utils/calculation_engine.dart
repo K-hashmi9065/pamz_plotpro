@@ -97,9 +97,9 @@ abstract class CalculationEngine {
     return profit < 0 ? 0.0 : _round2(profit);
   }
 
-  /// PRD §7.5: Investor Profit Share & ROI
+  /// PRD §7.5: Investor Profit Share & ROR (Rate of Return)
   /// Investor Profit Share = Distributable Profit * (Investor Ownership % / 100)
-  /// Investor ROI % = (Investor Profit Share / Investor Capital Contributed) * 100
+  /// Investor ROR % = (Investor Profit Share / Investor Capital Contributed) * 100
   static double calculateInvestorProfitShare({
     required double distributableProfit,
     required double ownershipPercent,
@@ -107,12 +107,23 @@ abstract class CalculationEngine {
     return _round2(distributableProfit * (ownershipPercent / 100.0));
   }
 
-  static double calculateInvestorRoi({
+  static double calculateInvestorRor({
     required double investorProfitShare,
     required double investorCapitalContributed,
   }) {
     if (investorCapitalContributed <= 0) return 0.0;
     return _round2((investorProfitShare / investorCapitalContributed) * 100.0);
+  }
+
+  /// Backwards-compatible alias for calculateInvestorRor
+  static double calculateInvestorRoi({
+    required double investorProfitShare,
+    required double investorCapitalContributed,
+  }) {
+    return calculateInvestorRor(
+      investorProfitShare: investorProfitShare,
+      investorCapitalContributed: investorCapitalContributed,
+    );
   }
 
   /// PRD §7.5: Investor Final Settlement

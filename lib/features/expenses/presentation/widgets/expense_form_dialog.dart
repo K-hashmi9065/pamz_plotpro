@@ -9,13 +9,31 @@ import '../../../../shared/widgets/searchable_project_dropdown.dart';
 import '../expenses_providers.dart';
 
 class ExpenseFormDialog extends ConsumerStatefulWidget {
-  const ExpenseFormDialog({super.key});
+  final String? preselectedProjectId;
+  final String? preselectedPlotNumber;
+  final String? initialNotes;
 
-  static Future<void> show(BuildContext context) {
+  const ExpenseFormDialog({
+    super.key,
+    this.preselectedProjectId,
+    this.preselectedPlotNumber,
+    this.initialNotes,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    String? preselectedProjectId,
+    String? preselectedPlotNumber,
+    String? initialNotes,
+  }) {
     return showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const ExpenseFormDialog(),
+      builder: (context) => ExpenseFormDialog(
+        preselectedProjectId: preselectedProjectId,
+        preselectedPlotNumber: preselectedPlotNumber,
+        initialNotes: initialNotes,
+      ),
     );
   }
 
@@ -29,12 +47,23 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
   final _vendorController = TextEditingController();
   final _notesController = TextEditingController();
 
-  final ValueNotifier<String?> _selectedProjectIdNotifier = ValueNotifier<String?>(null);
+  late final ValueNotifier<String?> _selectedProjectIdNotifier;
   final ValueNotifier<ExpenseCategory> _selectedCategoryNotifier = ValueNotifier<ExpenseCategory>(ExpenseCategory.development);
   final ValueNotifier<bool> _isCapitalizedNotifier = ValueNotifier<bool>(true);
   final DateTime _expenseDate = DateTime.now();
   final ValueNotifier<bool> _isSavingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> _errorMessageNotifier = ValueNotifier<String?>(null);
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProjectIdNotifier = ValueNotifier<String?>(widget.preselectedProjectId);
+    if (widget.initialNotes != null && widget.initialNotes!.isNotEmpty) {
+      _notesController.text = widget.initialNotes!;
+    } else if (widget.preselectedPlotNumber != null && widget.preselectedPlotNumber!.isNotEmpty) {
+      _notesController.text = 'Plot ${widget.preselectedPlotNumber} - ';
+    }
+  }
 
   Future<void> _createNewProject() async {
     final newProject = await ProjectFormDialog.show(context);

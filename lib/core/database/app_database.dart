@@ -25,7 +25,7 @@ class Users extends Table {
 class Projects extends Table {
   TextColumn get id => text()();
   TextColumn get code => text().unique()();
-  TextColumn get name => text()();
+  TextColumn get name => text().unique()();
   TextColumn get description => text().nullable()();
   TextColumn get location => text()();
   TextColumn get status => text()(); // ProjectStatus enum string
@@ -306,6 +306,9 @@ class AppDatabase extends _$AppDatabase {
           } catch (_) {}
           try {
             await customStatement('ALTER TABLE projects ADD COLUMN breadth_in REAL;');
+          } catch (_) {}
+          try {
+            await customStatement('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_name_unique ON projects(LOWER(TRIM(name)));');
           } catch (_) {}
         },
       );

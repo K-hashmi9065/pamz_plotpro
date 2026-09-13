@@ -19,14 +19,19 @@ class ReceivablesPayablesScreen extends ConsumerWidget {
 
   BadgeType _getAgingBadgeType(String bucket) {
     switch (bucket) {
+      case 'On Time':
       case 'Current':
         return BadgeType.info;
+      case '1-30 Days Due':
       case '0-30 Days':
         return BadgeType.warning;
+      case '31-60 Days Overdue':
       case '31-60 Days':
         return BadgeType.warning;
+      case '61-90 Days Overdue':
       case '61-90 Days':
         return BadgeType.danger;
+      case '90+ Days Overdue':
       case '90+ Days':
         return BadgeType.danger;
       default:
@@ -68,8 +73,8 @@ class ReceivablesPayablesScreen extends ConsumerWidget {
     }
 
     final tabs = [
-      'Buyer Receivables (Aging)',
-      'Landowner Payables',
+      'Customer Pending Dues',
+      'Landowner Pending Payments',
       'Project Cash Flow',
     ];
 
@@ -79,7 +84,7 @@ class ReceivablesPayablesScreen extends ConsumerWidget {
         const PageHeader(
           title: 'Receivables, Payables & Cash Flow Ledger',
           subtitle:
-              'Monitor buyer receivable aging schedules, landowner purchase payables, and project cash flow liquidity.',
+              'Monitor customer pending dues, landowner purchase payables, and project cash flow liquidity.',
           icon: Icons.compare_arrows_outlined,
         ),
         const SizedBox(height: 16),
@@ -89,11 +94,11 @@ class ReceivablesPayablesScreen extends ConsumerWidget {
           children: [
             Expanded(
               child: _MetricCard(
-                title: 'Total Buyer Receivables',
+                title: 'Total Customer Pending Dues',
                 amountDisplay: CalculationEngine.formatCurrency(totalReceivables),
                 subtitle: countOverdue90 > 0
-                    ? '$countOverdue90 items in 90+ days aging'
-                    : 'All dues within current limits',
+                    ? '$countOverdue90 dues delayed 90+ days'
+                    : 'All customer dues on track',
                 icon: Icons.call_received_outlined,
                 color: AppColors.accent,
               ),
@@ -101,7 +106,7 @@ class ReceivablesPayablesScreen extends ConsumerWidget {
             const SizedBox(width: 14),
             Expanded(
               child: _MetricCard(
-                title: 'Total Landowner Payables',
+                title: 'Total Landowner Pending Dues',
                 amountDisplay: CalculationEngine.formatCurrency(totalPayables),
                 subtitle: 'Pending purchase agreement settlements',
                 icon: Icons.call_made_outlined,
@@ -243,12 +248,12 @@ class ReceivablesPayablesScreen extends ConsumerWidget {
 
             return CustomDataTable(
               columns: const [
-                DataTableColumn(label: 'Buyer Name', width: 180),
+                DataTableColumn(label: 'Customer Name', width: 180),
                 DataTableColumn(label: 'Inst #', width: 90),
-                DataTableColumn(label: 'Due Date', width: 140),
-                DataTableColumn(label: 'Overdue Days', width: 130),
-                DataTableColumn(label: 'Aging Bucket', width: 150),
-                DataTableColumn(label: 'Outstanding Balance', width: 220),
+                DataTableColumn(label: 'Due Date', width: 130),
+                DataTableColumn(label: 'Delayed Days', width: 130),
+                DataTableColumn(label: 'Due Status', width: 160),
+                DataTableColumn(label: 'Pending Amount', width: 220),
               ],
               rows: filtered.map((r) {
                 return [

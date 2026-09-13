@@ -239,16 +239,29 @@ class LandownersRepository {
     return _toLandownerModel(row);
   }
 
-  /// Delete landowner with strict relation checks (Requirement 20)
-  Future<void> deleteLandowner(String landownerId, {required String userId}) async {
-    final linkedProjects = await (_db.select(_db.projects)..where((tbl) => tbl.landownerId.equals(landownerId))).get();
-    if (linkedProjects.isNotEmpty) {
-      throw StateError('Cannot delete landowner: Landowner is associated with ${linkedProjects.length} project(s).');
-    }
+  /// Delete landowner with cascade cleanup / unlinking (Requirement 20 / Admin Override)
+  Future<void> deleteLandowner(String landownerId, {required String userId, bool cascade = false}) async {
+    final lo = await (_db.select(_db.landowners)..where((tbl) => tbl.id.equals(landownerId))).getSingleOrNull();
+    final landownerName = lo?.name ?? landownerId;
 
-    final linkedAgreements = await (_db.select(_db.purchaseAgreements)..where((tbl) => tbl.landownerId.equals(landownerId))).get();
-    if (linkedAgreements.isNotEmpty) {
-      throw StateError('Cannot delete landowner: Landowner has existing purchase agreement(s).');
+    if (!cascade) {
+      final linkedProjects = await (_db.select(_db.projects)..where((tbl) => tbl.landownerId.equals(landownerId))).get();
+      if (linkedProjects.isNotEmpty) {
+        throw StateError('Cannot delete landowner: Landowner is associated with ${linkedProjects.length} project(s).');
+      }
+      final linkedAgreements = await (_db.select(_db.purchaseAgreements)..where((tbl) => tbl.landownerId.equals(landownerId))).get();
+      if (linkedAgreements.isNotEmpty) {
+        throw StateError('Cannot delete landowner: Landowner has existing purchase agreement(s).');
+      }
+    } else {
+      // Unlink landowner from any projects
+      await (_db.update(_db.projects)..where((tbl) => tbl.landownerId.equals(landownerId))).write(
+        const ProjectsCompanion(
+          landownerId: Value(null),
+        ),
+      );
+      // Delete associated purchase agreements
+      await (_db.delete(_db.purchaseAgreements)..where((tbl) => tbl.landownerId.equals(landownerId))).go();
     }
 
     await (_db.delete(_db.landowners)..where((tbl) => tbl.id.equals(landownerId))).go();
@@ -261,7 +274,7 @@ class LandownersRepository {
             action: const Value('DELETE_LANDOWNER'),
             entityType: const Value('Landowner'),
             entityId: Value(landownerId),
-            details: Value('Deleted landowner ID $landownerId.'),
+            details: Value('Deleted landowner "$landownerName" (ID: $landownerId).'),
             timestamp: Value(DateTime.now()),
           ),
         );

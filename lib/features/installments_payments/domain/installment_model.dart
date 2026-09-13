@@ -2,6 +2,7 @@ import '../../../core/constants/app_constants.dart';
 
 class InstallmentModel {
   final String id;
+  final String? projectId;
   final String? saleId;
   final String? purchaseAgreementId;
   final int installmentNumber;
@@ -16,6 +17,7 @@ class InstallmentModel {
 
   const InstallmentModel({
     required this.id,
+    this.projectId,
     this.saleId,
     this.purchaseAgreementId,
     required this.installmentNumber,

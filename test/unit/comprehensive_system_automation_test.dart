@@ -45,7 +45,7 @@ void main() {
 
       // Kattha & Dhur breakdown
       final breakdown = LandUnitConverter.sqFtToKattaDhur(calculatedSqFt);
-      expect(breakdown.katta, equals(1)); // 1515 / 1361.25 = 1 Katta + remainder
+      expect(breakdown.katta, equals(1)); // 1515 / 1125 = 1 Katta + remainder
       expect(breakdown.dhur, greaterThan(0.0));
     });
 

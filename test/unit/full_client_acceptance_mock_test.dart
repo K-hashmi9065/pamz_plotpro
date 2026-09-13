@@ -27,7 +27,7 @@ void main() {
       expect(project.name, equals('Kishanganj Green Valley'));
       expect(project.location, equals('Kishanganj, Bihar'));
       expect(project.purchasePrice, equals(20000000.0));
-      expect(project.landAreaSqFt, equals(136125.0));
+      expect(project.landAreaSqFt, equals(112500.0));
     });
 
     test('Phase 6: Landowner Mock Test & Form Validations', () {

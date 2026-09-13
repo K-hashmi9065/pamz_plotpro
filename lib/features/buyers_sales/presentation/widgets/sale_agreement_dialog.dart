@@ -112,23 +112,40 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
   }
 
   String _formatSqFt(double sqFt, String unit) {
-    if (sqFt <= 0) return '0 $unit';
+    if (sqFt <= 0) return '0 Sq Ft';
+    if (unit.toLowerCase().contains('dimension')) {
+      final sqFtStr = sqFt == sqFt.roundToDouble()
+          ? sqFt.toInt().toString()
+          : double.parse(sqFt.toStringAsFixed(2))
+              .toString()
+              .replaceAll(RegExp(r'\.0+$'), '');
+      return '$sqFtStr Sq Ft';
+    }
     if (unit.toLowerCase().contains('katta') ||
         unit.toLowerCase().contains('kattha')) {
-      final totalKatta = sqFt / LandUnitConverter.sqFtPerKatta;
-      final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
+      final totalKatta = LandUnitConverter.sqFtToKatta(sqFt);
       final kattaStr = totalKatta == totalKatta.roundToDouble()
           ? totalKatta.toInt().toString()
           : double.parse(totalKatta.toStringAsFixed(2))
               .toString()
-              .replaceAll(RegExp(r'\.0+$'), '');
-      if (kd.dhur > 0 && totalKatta != totalKatta.roundToDouble()) {
-        return '$kattaStr Kattha (${kd.katta}K ${kd.dhur}D)';
-      }
+              .replaceAll(RegExp(r'0+$'), '')
+              .replaceAll(RegExp(r'\.$'), '');
       return '$kattaStr Kattha';
     }
     return LandUnitConverter.formatLandMeasurement(
         areaSqFt: sqFt, measurementUnit: unit);
+  }
+
+  String _formatKatthaSub(double sqFt) {
+    if (sqFt <= 0) return '0 Kattha';
+    final totalKattha = LandUnitConverter.sqFtToKatta(sqFt);
+    final katthaStr = totalKattha == totalKattha.roundToDouble()
+        ? totalKattha.toInt().toString()
+        : double.parse(totalKattha.toStringAsFixed(2))
+            .toString()
+            .replaceAll(RegExp(r'0+$'), '')
+            .replaceAll(RegExp(r'\.$'), '');
+    return '$katthaStr Kattha';
   }
 
   Future<void> _submit() async {
@@ -278,25 +295,49 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
 
               // Land Metrics Row
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _landMetric('Total Land',
-                        _formatSqFt(totalLandSqFt, project.measurementUnit)),
-                    _landMetric('Plotted Land',
-                        _formatSqFt(plottedSqFt, project.measurementUnit)),
-                    _landMetric(
-                      'Remaining Land',
-                      '${_formatSqFt(remainingSqFt, project.measurementUnit)} remaining',
-                      color: remainingSqFt > 0
-                          ? AppColors.successText
-                          : AppColors.warningText,
+                    Expanded(
+                      child: _landMetric(
+                        'Total Land',
+                        _formatSqFt(totalLandSqFt, project.measurementUnit),
+                        subtitle: _formatKatthaSub(totalLandSqFt),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 32,
+                      color: AppColors.border,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                    Expanded(
+                      child: _landMetric(
+                        'Plotted Land',
+                        _formatSqFt(plottedSqFt, project.measurementUnit),
+                        subtitle: _formatKatthaSub(plottedSqFt),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 32,
+                      color: AppColors.border,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                    Expanded(
+                      child: _landMetric(
+                        'Remaining Land',
+                        _formatSqFt(remainingSqFt, project.measurementUnit),
+                        subtitle: _formatKatthaSub(remainingSqFt),
+                        color: remainingSqFt > 0
+                            ? AppColors.successText
+                            : AppColors.warningText,
+                      ),
                     ),
                   ],
                 ),
@@ -455,10 +496,18 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
     );
   }
 
-  Widget _landMetric(String label, String value, {Color? color}) {
+  Widget _landMetric(String label, String value, {String? subtitle, Color? color}) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(label, style: AppTypography.secondary.copyWith(fontSize: 10)),
+        Text(
+          label,
+          style: AppTypography.secondary.copyWith(fontSize: 10),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
         const SizedBox(height: 2),
         Text(
           value,
@@ -467,7 +516,26 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
             fontSize: 12,
             color: color ?? AppColors.textPrimary,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
+        if (subtitle != null && subtitle.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: AppTypography.secondary.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color != null
+                  ? color.withValues(alpha: 0.85)
+                  : AppColors.accent,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ],
     );
   }

@@ -50,6 +50,10 @@ abstract class AppColors {
   static const Color warningBg = Color(0xFFFFFBEB); // Amber 50
   static const Color warningText = Color(0xFFB45309); // Amber 700
 
+  // Orange / Revenue Accent
+  static const Color orange = Color(0xFFEA580C); // Orange 600
+  static const Color orangeText = Color(0xFFC2410C); // Orange 700
+
   // Danger / Overdue / Error / Critical
   static const Color danger = Color(0xFFDC2626); // Red 600
   static const Color dangerBg = Color(0xFFFEF2F2); // Red 50

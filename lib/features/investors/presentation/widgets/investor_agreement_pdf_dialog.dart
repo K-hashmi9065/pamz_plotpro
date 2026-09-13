@@ -13,50 +13,50 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
 import '../../../../core/utils/land_unit_converter.dart';
 
-class AgreementPdfDialog extends StatefulWidget {
-  final String landownerName;
-  final String landownerPhone;
-  final String? landownerPan;
-  final String? landownerEmail;
-  final String? landownerAddress;
+class InvestorAgreementPdfDialog extends StatefulWidget {
+  final String investorName;
+  final String investorPhone;
+  final String? investorPan;
+  final String? investorEmail;
   final String projectName;
   final String projectCode;
   final String projectLocation;
-  final double landAreaSqFt;
-  final double totalPrice;
-  final int installmentCount;
+  final double projectLandAreaSqFt;
+  final double investedAmount;
+  final double ownershipPercent;
+  final OwnershipMethod ownershipMethod;
   final DateTime agreementDate;
 
-  const AgreementPdfDialog({
+  const InvestorAgreementPdfDialog({
     super.key,
-    required this.landownerName,
-    required this.landownerPhone,
-    this.landownerPan,
-    this.landownerEmail,
-    this.landownerAddress,
+    required this.investorName,
+    required this.investorPhone,
+    this.investorPan,
+    this.investorEmail,
     required this.projectName,
     required this.projectCode,
     required this.projectLocation,
-    required this.landAreaSqFt,
-    required this.totalPrice,
-    required this.installmentCount,
+    required this.projectLandAreaSqFt,
+    required this.investedAmount,
+    required this.ownershipPercent,
+    required this.ownershipMethod,
     required this.agreementDate,
   });
 
   static Future<void> show(
     BuildContext context, {
-    required String landownerName,
-    required String landownerPhone,
-    String? landownerPan,
-    String? landownerEmail,
-    String? landownerAddress,
+    required String investorName,
+    required String investorPhone,
+    String? investorPan,
+    String? investorEmail,
     required String projectName,
     required String projectCode,
     required String projectLocation,
-    required double landAreaSqFt,
-    required double totalPrice,
-    required int installmentCount,
-    required DateTime agreementDate,
+    required double projectLandAreaSqFt,
+    required double investedAmount,
+    required double ownershipPercent,
+    required OwnershipMethod ownershipMethod,
+    DateTime? agreementDate,
   }) {
     return showDialog(
       context: context,
@@ -71,19 +71,19 @@ class AgreementPdfDialog extends StatefulWidget {
         child: SizedBox(
           width: 900,
           height: 750,
-          child: AgreementPdfDialog(
-            landownerName: landownerName,
-            landownerPhone: landownerPhone,
-            landownerPan: landownerPan,
-            landownerEmail: landownerEmail,
-            landownerAddress: landownerAddress,
+          child: InvestorAgreementPdfDialog(
+            investorName: investorName,
+            investorPhone: investorPhone,
+            investorPan: investorPan,
+            investorEmail: investorEmail,
             projectName: projectName,
             projectCode: projectCode,
             projectLocation: projectLocation,
-            landAreaSqFt: landAreaSqFt,
-            totalPrice: totalPrice,
-            installmentCount: installmentCount,
-            agreementDate: agreementDate,
+            projectLandAreaSqFt: projectLandAreaSqFt,
+            investedAmount: investedAmount,
+            ownershipPercent: ownershipPercent,
+            ownershipMethod: ownershipMethod,
+            agreementDate: agreementDate ?? DateTime.now(),
           ),
         ),
       ),
@@ -91,10 +91,10 @@ class AgreementPdfDialog extends StatefulWidget {
   }
 
   @override
-  State<AgreementPdfDialog> createState() => _AgreementPdfDialogState();
+  State<InvestorAgreementPdfDialog> createState() => _InvestorAgreementPdfDialogState();
 }
 
-class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
+class _InvestorAgreementPdfDialogState extends State<InvestorAgreementPdfDialog> {
   final ValueNotifier<Uint8List?> _pdfBytesNotifier = ValueNotifier<Uint8List?>(null);
   final ValueNotifier<bool> _isGeneratingNotifier = ValueNotifier<bool>(true);
 
@@ -112,18 +112,18 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
   }
 
   Future<void> _generatePdf() async {
-    final bytes = await AgreementPdfService.generatePurchaseAgreementPdf(
-      landownerName: widget.landownerName,
-      landownerPhone: widget.landownerPhone,
-      landownerPan: widget.landownerPan,
-      landownerEmail: widget.landownerEmail,
-      landownerAddress: widget.landownerAddress,
+    final bytes = await InvestorAgreementPdfService.generateInvestorAgreementPdf(
+      investorName: widget.investorName,
+      investorPhone: widget.investorPhone,
+      investorPan: widget.investorPan,
+      investorEmail: widget.investorEmail,
       projectName: widget.projectName,
       projectCode: widget.projectCode,
       projectLocation: widget.projectLocation,
-      landAreaSqFt: widget.landAreaSqFt,
-      totalPrice: widget.totalPrice,
-      installmentCount: widget.installmentCount,
+      projectLandAreaSqFt: widget.projectLandAreaSqFt,
+      investedAmount: widget.investedAmount,
+      ownershipPercent: widget.ownershipPercent,
+      ownershipMethod: widget.ownershipMethod,
       agreementDate: widget.agreementDate,
     );
 
@@ -136,8 +136,8 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
   Future<void> _downloadPdfFile() async {
     final pdfBytes = _pdfBytesNotifier.value;
     if (pdfBytes == null) return;
-    final filename = 'Land_Purchase_Agreement_${widget.projectCode}_${widget.landownerName.replaceAll(' ', '_')}.pdf';
-    final savedPath = await AgreementPdfService.savePdfToDownloads(
+    final filename = 'Investor_Agreement_${widget.projectCode}_${widget.investorName.replaceAll(' ', '_')}.pdf';
+    final savedPath = await InvestorAgreementPdfService.savePdfToDownloads(
       pdfBytes: pdfBytes,
       filename: filename,
     );
@@ -159,31 +159,33 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
   Future<void> _shareWhatsApp() async {
     final pdfBytes = _pdfBytesNotifier.value;
     if (pdfBytes != null) {
-      final filename = 'Land_Purchase_Agreement_${widget.projectCode}_${widget.landownerName.replaceAll(' ', '_')}.pdf';
-      final savedPath = await AgreementPdfService.savePdfToDownloads(
+      final filename = 'Investor_Agreement_${widget.projectCode}_${widget.investorName.replaceAll(' ', '_')}.pdf';
+      final savedPath = await InvestorAgreementPdfService.savePdfToDownloads(
         pdfBytes: pdfBytes,
         filename: filename,
       );
+
       if (mounted && savedPath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('PDF saved to Downloads! Opening WhatsApp... Attach the saved PDF from Downloads.'),
-            backgroundColor: AppColors.primary,
-            duration: const Duration(seconds: 4),
+            backgroundColor: AppColors.accent,
+            duration: Duration(seconds: 4),
           ),
         );
       }
     }
 
-    await AgreementPdfService.shareViaWhatsApp(
-      phone: widget.landownerPhone,
-      landownerName: widget.landownerName,
+    await InvestorAgreementPdfService.shareViaWhatsApp(
+      phone: widget.investorPhone,
+      investorName: widget.investorName,
       projectName: widget.projectName,
       projectCode: widget.projectCode,
       projectLocation: widget.projectLocation,
-      landAreaSqFt: widget.landAreaSqFt,
-      totalPrice: widget.totalPrice,
-      installmentCount: widget.installmentCount,
+      projectLandAreaSqFt: widget.projectLandAreaSqFt,
+      investedAmount: widget.investedAmount,
+      ownershipPercent: widget.ownershipPercent,
+      ownershipMethod: widget.ownershipMethod,
     );
   }
 
@@ -192,7 +194,7 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
     if (pdfBytes == null) return;
     await Printing.sharePdf(
       bytes: pdfBytes,
-      filename: 'Agreement_${widget.projectCode}_${widget.landownerName.replaceAll(' ', '_')}.pdf',
+      filename: 'Investor_Agreement_${widget.projectCode}_${widget.investorName.replaceAll(' ', '_')}.pdf',
     );
   }
 
@@ -204,9 +206,13 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
         return Scaffold(
           backgroundColor: AppColors.surface,
           appBar: AppBar(
-            title: Text('Land Purchase Agreement PDF (${widget.projectCode})', style: AppTypography.cardTitle),
             backgroundColor: AppColors.surface,
-            elevation: 1,
+            elevation: 0,
+            title: Text('Investor Capital Agreement PDF (${widget.projectCode})', style: AppTypography.cardTitle),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.download, color: AppColors.accent),
@@ -218,17 +224,18 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
                 tooltip: 'Share PDF Document',
                 onPressed: pdfBytes == null ? null : _sharePdfFile,
               ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366), // WhatsApp Green
+                  backgroundColor: const Color(0xFF25D366),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 ),
+                icon: const Icon(Icons.send, size: 16, color: Colors.white),
+                label: const Text('Share via WhatsApp', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 onPressed: pdfBytes == null ? null : _shareWhatsApp,
-                icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                label: const Text('Share via WhatsApp'),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
             ],
           ),
           body: ValueListenableBuilder<bool>(
@@ -237,12 +244,15 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
               if (isGenerating || pdfBytes == null) {
                 return const Center(child: CircularProgressIndicator());
               }
+
               return PdfPreview(
                 build: (format) => pdfBytes,
-                allowPrinting: true,
-                allowSharing: true,
-                canChangeOrientation: false,
+                useActions: true,
                 canChangePageFormat: false,
+                canChangeOrientation: false,
+                canDebug: false,
+                initialPageFormat: PdfPageFormat.a4,
+                pdfFileName: 'Investor_Agreement_${widget.projectCode}_${widget.investorName.replaceAll(' ', '_')}.pdf',
               );
             },
           ),
@@ -252,37 +262,38 @@ class _AgreementPdfDialogState extends State<AgreementPdfDialog> {
   }
 }
 
-class AgreementPdfService {
-  static Future<Uint8List> generatePurchaseAgreementPdf({
-    required String landownerName,
-    required String landownerPhone,
-    String? landownerPan,
-    String? landownerEmail,
-    String? landownerAddress,
+class InvestorAgreementPdfService {
+  static Future<Uint8List> generateInvestorAgreementPdf({
+    required String investorName,
+    required String investorPhone,
+    String? investorPan,
+    String? investorEmail,
     required String projectName,
     required String projectCode,
     required String projectLocation,
-    required double landAreaSqFt,
-    required double totalPrice,
-    required int installmentCount,
+    required double projectLandAreaSqFt,
+    required double investedAmount,
+    required double ownershipPercent,
+    required OwnershipMethod ownershipMethod,
     required DateTime agreementDate,
   }) async {
     final pdf = pw.Document();
     final formattedDate = DateFormat('dd MMMM yyyy').format(agreementDate);
-    final totalKatta = LandUnitConverter.sqFtToKatta(landAreaSqFt);
+
+    final totalKatta = LandUnitConverter.sqFtToKatta(projectLandAreaSqFt);
     final totalKattaStr = totalKatta == totalKatta.roundToDouble()
         ? totalKatta.toInt().toString()
         : double.parse(totalKatta.toStringAsFixed(3)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-    final totalDhur = LandUnitConverter.sqFtToDhur(landAreaSqFt);
+    final totalDhur = LandUnitConverter.sqFtToDhur(projectLandAreaSqFt);
     final totalDhurStr = totalDhur == totalDhur.roundToDouble()
         ? totalDhur.toInt().toString()
         : double.parse(totalDhur.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-    final totalDec = LandUnitConverter.sqFtToDecimal(landAreaSqFt);
+    final totalDec = LandUnitConverter.sqFtToDecimal(projectLandAreaSqFt);
     final totalDecStr = totalDec == totalDec.roundToDouble()
         ? totalDec.toInt().toString()
         : double.parse(totalDec.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-    final formattedSqFt = CalculationEngine.indianNumberFormat.format(landAreaSqFt.round());
-    final formattedPrice = 'Rs. ${CalculationEngine.indianNumberFormat.format(totalPrice.round())}';
+    final formattedSqFt = CalculationEngine.indianNumberFormat.format(projectLandAreaSqFt.round());
+    final formattedCapital = 'Rs. ${CalculationEngine.indianNumberFormat.format(investedAmount.round())}';
 
     pdf.addPage(
       pw.Page(
@@ -300,9 +311,9 @@ class AgreementPdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'LAND PURCHASE AGREEMENT',
+                        'INVESTOR CAPITAL & OWNERSHIP AGREEMENT',
                         style: pw.TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.blue800,
                         ),
@@ -318,7 +329,7 @@ class AgreementPdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text('Date: $formattedDate', style: const pw.TextStyle(fontSize: 11)),
-                      pw.Text('Ref #: AGR-$projectCode', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
+                      pw.Text('Ref #: INV-AGR-$projectCode', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
                     ],
                   ),
                 ],
@@ -341,11 +352,11 @@ class AgreementPdfService {
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('LANDOWNER / SELLER:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-                          pw.Text('Name: $landownerName', style: const pw.TextStyle(fontSize: 10)),
-                          pw.Text('Phone: $landownerPhone', style: const pw.TextStyle(fontSize: 10)),
-                          pw.Text('PAN: ${landownerPan ?? "N/A"}', style: const pw.TextStyle(fontSize: 10)),
-                          pw.Text('Email: ${landownerEmail ?? "N/A"}', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('INVESTOR / EQUITY PARTNER:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                          pw.Text('Name: $investorName', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Phone: $investorPhone', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('PAN: ${investorPan ?? "N/A"}', style: const pw.TextStyle(fontSize: 10)),
+                          pw.Text('Email: ${investorEmail ?? "N/A"}', style: const pw.TextStyle(fontSize: 10)),
                         ],
                       ),
                     ),
@@ -353,7 +364,7 @@ class AgreementPdfService {
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('PURCHASER / DEVELOPER:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                          pw.Text('DEVELOPER / MANAGING ENTITY:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                           pw.Text('Entity: ${AppConstants.appName}', style: const pw.TextStyle(fontSize: 10)),
                           pw.Text('Project Code: $projectCode', style: const pw.TextStyle(fontSize: 10)),
                           pw.Text('Project Name: $projectName', style: const pw.TextStyle(fontSize: 10)),
@@ -366,17 +377,19 @@ class AgreementPdfService {
               ),
               pw.SizedBox(height: 16),
 
-              // Section 2: Property & Financial Terms
-              pw.Text('2. LAND DETAILS & FINANCIAL TERMS', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              // Section 2: Investment & Ownership Allocation
+              pw.Text('2. CAPITAL CONTRIBUTION & OWNERSHIP TERMS', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 6),
               pw.TableHelper.fromTextArray(
-                headers: ['Property Parameter', 'Details / Specification'],
+                headers: ['Parameter', 'Details / Specification'],
                 data: [
                   ['Project Name & Code', '$projectName ($projectCode)'],
                   ['Project Location', projectLocation],
-                  ['Total Land Area', '$formattedSqFt Sq. Ft. ($totalKattaStr Kattha | $totalDhurStr Dhur | $totalDecStr Dec)'],
-                  ['Total Purchase Price', formattedPrice],
-                  ['Payment Schedule', '$installmentCount Scheduled Installment Payments'],
+                  ['Total Project Land Area', '$formattedSqFt Sq. Ft. ($totalKattaStr Kattha | $totalDhurStr Dhur | $totalDecStr Dec)'],
+                  ['Contributed Capital Amount', formattedCapital],
+                  ['Allocated Ownership Share', '${ownershipPercent.toStringAsFixed(2)}%'],
+                  ['Allocation Method', ownershipMethod == OwnershipMethod.capitalBased ? 'CAPITAL_BASED (Pro-rata share calculation)' : 'MANUAL (Agreed ownership share)'],
+                  ['Profit & Loss Distribution', 'Proportional to ${ownershipPercent.toStringAsFixed(2)}% equity share'],
                 ],
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
@@ -385,13 +398,13 @@ class AgreementPdfService {
               ),
               pw.SizedBox(height: 16),
 
-              // Section 3: Statutory Clauses
-              pw.Text('3. TERMS & DECLARATIONS', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              // Section 3: Statutory & Investment Declarations
+              pw.Text('3. TERMS & OPERATING DECLARATIONS', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 6),
-              pw.Bullet(text: 'The Seller confirms unencumbered, clear title of ownership over the specified land parcel.', style: const pw.TextStyle(fontSize: 9)),
-              pw.Bullet(text: 'The Purchaser agrees to disburse payments strictly as per the agreed schedule.', style: const pw.TextStyle(fontSize: 9)),
-              pw.Bullet(text: 'Possession and mutation process shall commence upon complete settlement of total purchase price.', style: const pw.TextStyle(fontSize: 9)),
-              pw.Bullet(text: 'Both parties agree to execute statutory deed registration under local jurisdiction.', style: const pw.TextStyle(fontSize: 9)),
+              pw.Bullet(text: 'The Investor commits capital contribution towards project acquisition, development, and operating execution.', style: const pw.TextStyle(fontSize: 9)),
+              pw.Bullet(text: 'Ownership percentage confers proportional rights to net realized profits and asset appreciation upon inventory liquidation.', style: const pw.TextStyle(fontSize: 9)),
+              pw.Bullet(text: 'Disbursement of returns, capital repayments, and dividends shall follow phased milestone realizations from plot sales.', style: const pw.TextStyle(fontSize: 9)),
+              pw.Bullet(text: 'Both parties agree to statutory audit compliance, tax withholding (TDS), and applicable partnership protocols.', style: const pw.TextStyle(fontSize: 9)),
 
               pw.Spacer(),
 
@@ -404,8 +417,8 @@ class AgreementPdfService {
                     children: [
                       pw.Container(width: 160, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 4),
-                      pw.Text('Seller / Landowner Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-                      pw.Text('Name: $landownerName', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Investor / Partner Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                      pw.Text('Name: $investorName', style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),
                   pw.Column(
@@ -413,7 +426,7 @@ class AgreementPdfService {
                     children: [
                       pw.Container(width: 160, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 4),
-                      pw.Text('Authorized Purchaser Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                      pw.Text('Authorized Entity Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                       pw.Text('Entity: ${AppConstants.appName}', style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),
@@ -422,7 +435,7 @@ class AgreementPdfService {
               pw.SizedBox(height: 16),
               pw.Center(
                 child: pw.Text(
-                  'Generated via ${AppConstants.appName} - Confidential',
+                  'Generated via ${AppConstants.appName} - Confidential Investor Document',
                   style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                 ),
               ),
@@ -437,40 +450,41 @@ class AgreementPdfService {
 
   static Future<void> shareViaWhatsApp({
     required String phone,
-    required String landownerName,
+    required String investorName,
     required String projectName,
     required String projectCode,
     required String projectLocation,
-    required double landAreaSqFt,
-    required double totalPrice,
-    required int installmentCount,
+    required double projectLandAreaSqFt,
+    required double investedAmount,
+    required double ownershipPercent,
+    required OwnershipMethod ownershipMethod,
   }) async {
-    final formattedPrice = 'Rs. ${CalculationEngine.indianNumberFormat.format(totalPrice.round())}';
-    final totalKatta = LandUnitConverter.sqFtToKatta(landAreaSqFt);
+    final formattedCapital = 'Rs. ${CalculationEngine.indianNumberFormat.format(investedAmount.round())}';
+    final totalKatta = LandUnitConverter.sqFtToKatta(projectLandAreaSqFt);
     final totalKattaStr = totalKatta == totalKatta.roundToDouble()
         ? totalKatta.toInt().toString()
         : double.parse(totalKatta.toStringAsFixed(3)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-    final totalDhur = LandUnitConverter.sqFtToDhur(landAreaSqFt);
+    final totalDhur = LandUnitConverter.sqFtToDhur(projectLandAreaSqFt);
     final totalDhurStr = totalDhur == totalDhur.roundToDouble()
         ? totalDhur.toInt().toString()
         : double.parse(totalDhur.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-    final totalDec = LandUnitConverter.sqFtToDecimal(landAreaSqFt);
+    final totalDec = LandUnitConverter.sqFtToDecimal(projectLandAreaSqFt);
     final totalDecStr = totalDec == totalDec.roundToDouble()
         ? totalDec.toInt().toString()
         : double.parse(totalDec.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-    final formattedSqFt = CalculationEngine.indianNumberFormat.format(landAreaSqFt.round());
+    final formattedSqFt = CalculationEngine.indianNumberFormat.format(projectLandAreaSqFt.round());
     final formattedArea = '$formattedSqFt Sq. Ft. ($totalKattaStr Kattha | $totalDhurStr Dhur | $totalDecStr Dec)';
 
     final message = '''
-📜 *LAND PURCHASE AGREEMENT*
+📜 *INVESTOR CAPITAL & OWNERSHIP AGREEMENT*
 ---------------------------------------
-👤 *Landowner:* $landownerName
+👤 *Investor:* $investorName
 📞 *Phone:* $phone
 🏗️ *Project:* $projectName ($projectCode)
 📍 *Location:* $projectLocation
-📐 *Land Area:* $formattedArea
-💰 *Agreed Purchase Price:* $formattedPrice
-📅 *Payment Schedule:* $installmentCount Installments
+📐 *Project Land Area:* $formattedArea
+💰 *Capital Contribution:* $formattedCapital
+📊 *Allocated Ownership:* ${ownershipPercent.toStringAsFixed(2)}% (${ownershipMethod.name.toUpperCase()})
 
 _Generated via ${AppConstants.appName}_
 '''.trim();
@@ -487,11 +501,10 @@ _Generated via ${AppConstants.appName}_
     try {
       if (await canLaunchUrl(whatsappAppUri)) {
         await launchUrl(whatsappAppUri, mode: LaunchMode.externalApplication);
-        return;
+      } else if (await canLaunchUrl(whatsappWebUri)) {
+        await launchUrl(whatsappWebUri, mode: LaunchMode.externalApplication);
       }
     } catch (_) {}
-
-    await launchUrl(whatsappWebUri, mode: LaunchMode.externalApplication);
   }
 
   static Future<String?> savePdfToDownloads({
@@ -499,18 +512,19 @@ _Generated via ${AppConstants.appName}_
     required String filename,
   }) async {
     try {
-      Directory? downloadsDir;
+      Directory? dir;
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        downloadsDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+        dir = await getDownloadsDirectory();
       } else {
-        downloadsDir = await getApplicationDocumentsDirectory();
+        dir = await getApplicationDocumentsDirectory();
       }
 
-      final file = File('${downloadsDir.path}/$filename');
+      if (dir == null) return null;
+      final filePath = '${dir.path}${Platform.pathSeparator}$filename';
+      final file = File(filePath);
       await file.writeAsBytes(pdfBytes);
-      return file.path;
+      return filePath;
     } catch (e) {
-      debugPrint('Error saving PDF: $e');
       return null;
     }
   }

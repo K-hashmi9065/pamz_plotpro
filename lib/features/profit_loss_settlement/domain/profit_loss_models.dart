@@ -81,12 +81,15 @@ class InvestorPayoutModel {
         ownershipPercent: ownershipPercent,
       );
 
-  /// PRD §7.5 Investor ROI % = (Profit Share / Capital Invested) * 100
-  double get roiPercent =>
-      CalculationEngine.calculateInvestorRoi(
+  /// PRD §7.5 Investor ROR % (Rate of Return) = (Profit Share / Capital Invested) * 100
+  double get rorPercent =>
+      CalculationEngine.calculateInvestorRor(
         investorProfitShare: allocatedProfitShare,
         investorCapitalContributed: capitalInvested,
       );
+
+  /// Backwards-compatible getter for rorPercent
+  double get roiPercent => rorPercent;
 
   /// PRD §7.5 Final Settlement Amount = Capital Invested + Profit Share - Payouts Disbursed
   double get remainingPayoutBalance =>

@@ -359,11 +359,10 @@ class ExpensesListScreen extends ConsumerWidget {
 
               return CustomDataTable(
                 columns: const [
-                  DataTableColumn(label: 'Expense Date', width: 130),
-                  DataTableColumn(label: 'Category', width: 160),
-                  DataTableColumn(label: 'Vendor / Receiver', width: 170),
-                  DataTableColumn(label: 'Amount Paid', width: 150),
-                  DataTableColumn(label: 'Accounting Type', width: 180),
+                  DataTableColumn(label: 'Expense Date', width: 140),
+                  DataTableColumn(label: 'Category', width: 170),
+                  DataTableColumn(label: 'Amount Paid', width: 160),
+                  DataTableColumn(label: 'Accounting Type', width: 190),
                   DataTableColumn(label: 'Notes & Description'),
                 ],
                 rows: filtered.map((e) {
@@ -375,10 +374,6 @@ class ExpensesListScreen extends ConsumerWidget {
                     Text(
                       e.category.name.toUpperCase(),
                       style: AppTypography.tableCell.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      e.vendorName ?? '—',
-                      style: AppTypography.tableCell,
                     ),
                     Text(
                       CalculationEngine.formatCurrency(e.amount),

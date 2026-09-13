@@ -8,9 +8,20 @@ import '../../../../core/utils/calculation_engine.dart';
 import '../../../../core/utils/land_unit_converter.dart';
 import '../../../../core/widgets/formula_explainability_dialog.dart';
 import '../../../../shared/widgets/page/status_badge.dart';
+import '../../../audit_log/presentation/audit_log_screen.dart';
+import '../../../buyers_sales/domain/sale_model.dart';
+import '../../../buyers_sales/presentation/sales_providers.dart';
+import '../../../buyers_sales/presentation/widgets/sale_agreement_dialog.dart';
+import '../../../expenses/presentation/expenses_providers.dart';
+import '../../../expenses/presentation/widgets/expense_form_dialog.dart';
+import '../../../installments_payments/domain/installment_model.dart';
+import '../../../installments_payments/domain/transaction_model.dart';
+import '../../../installments_payments/presentation/installments_providers.dart';
+import '../../../installments_payments/presentation/widgets/payment_record_dialog.dart';
 import '../../../projects/presentation/projects_providers.dart';
 import '../../domain/plot_model.dart';
-
+import '../plots_providers.dart';
+import 'plot_edit_dialog.dart';
 
 class PlotDetailsDialog extends ConsumerWidget {
   final PlotModel plot;
@@ -25,6 +36,56 @@ class PlotDetailsDialog extends ConsumerWidget {
       context: context,
       builder: (context) => PlotDetailsDialog(plot: plot),
     );
+  }
+
+  Future<void> _handleDeletePlot(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever_outlined, color: AppColors.dangerText, size: 24),
+            const SizedBox(width: 8),
+            Text('Confirm Delete Plot', style: AppTypography.cardTitle),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete Plot #${plot.plotNumber}?\n\n'
+          'The project cost allocation will automatically recalculate across all remaining plots.',
+          style: AppTypography.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete Plot', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        final repo = ref.read(plotsRepositoryProvider);
+        await repo.deletePlot(plot.id, userId: 'admin_user');
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Plot #${plot.plotNumber} deleted successfully!')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting plot: $e')),
+          );
+        }
+      }
+    }
   }
 
   BadgeType _getBadgeType(PlotStatus status) {
@@ -47,24 +108,152 @@ class PlotDetailsDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final projectsAsync = ref.watch(projectsListStreamProvider);
+    final salesAsync = ref.watch(salesListStreamProvider);
+    final installmentsAsync = ref.watch(installmentsListStreamProvider);
+    final transactionsAsync = ref.watch(transactionsListStreamProvider);
+    final expensesAsync = ref.watch(projectExpensesStreamProvider(plot.projectId));
+
     final formattedDate = DateFormat('dd MMM yyyy').format(plot.createdAt);
 
     // Multi-unit conversions for total plot area
-    final kd = LandUnitConverter.sqFtToKattaDhur(plot.areaSqFt);
     final decimalVal = LandUnitConverter.sqFtToDecimal(plot.areaSqFt);
+    final totalKatta = LandUnitConverter.sqFtToKatta(plot.areaSqFt);
+    final totalKattaStr = totalKatta == totalKatta.roundToDouble()
+        ? totalKatta.toInt().toString()
+        : double.parse(totalKatta.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    final totalDhur = LandUnitConverter.sqFtToDhur(plot.areaSqFt);
+    final totalDhurStr = totalDhur == totalDhur.roundToDouble()
+        ? totalDhur.toInt().toString()
+        : double.parse(totalDhur.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
     final bighaVal = LandUnitConverter.sqFtToBigha(plot.areaSqFt);
     final sqMeterVal = (plot.areaSqFt / LandUnitConverter.sqFtPerSqMeter).toStringAsFixed(1);
     final costPerSqFt = plot.areaSqFt > 0 ? plot.allocatedCost / plot.areaSqFt : 0.0;
     final expectedPricePerSqFt = plot.areaSqFt > 0 ? plot.expectedPrice / plot.areaSqFt : 0.0;
-    final expectedProfit = plot.expectedPrice > 0 ? (plot.expectedPrice - plot.allocatedCost) : 0.0;
 
     final lFt = plot.lengthFt ?? 0.0;
     final lIn = plot.lengthIn ?? 0.0;
     final bFt = plot.breadthFt ?? 0.0;
     final bIn = plot.breadthIn ?? 0.0;
 
-    final lengthStr = '${lFt == lFt.roundToDouble() ? lFt.toInt() : lFt} feet ${lIn == lIn.roundToDouble() ? lIn.toInt() : lIn} inches';
-    final breadthStr = '${bFt == bFt.roundToDouble() ? bFt.toInt() : bFt} feet ${bIn == bIn.roundToDouble() ? bIn.toInt() : bIn} inches';
+    final lengthStr = (lFt == 0 && lIn == 0)
+        ? '—'
+        : '${lFt == lFt.roundToDouble() ? lFt.toInt() : lFt} feet ${lIn == lIn.roundToDouble() ? lIn.toInt() : lIn} inches';
+    final breadthStr = (bFt == 0 && bIn == 0)
+        ? '—'
+        : '${bFt == bFt.roundToDouble() ? bFt.toInt() : bFt} feet ${bIn == bIn.roundToDouble() ? bIn.toInt() : bIn} inches';
+
+    final allSales = salesAsync.value ?? [];
+    final allInstallments = installmentsAsync.value ?? [];
+    final allTransactions = transactionsAsync.value ?? [];
+    final projectExpenses = expensesAsync.value ?? [];
+    final allLogs = ref.watch(auditLogsStreamProvider).value ?? [];
+
+    final bool isPlotSoldOrBooked = plot.status != PlotStatus.available &&
+        plot.status != PlotStatus.cancelled &&
+        !plot.isRoad;
+
+    // Check if there is an active sale agreement for this specific plot
+    SaleModel? matchedSale;
+    if (isPlotSoldOrBooked && allSales.isNotEmpty) {
+      final projectSales = allSales.where((s) => s.projectId == plot.projectId).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      // 1. Direct match via LINK_PLOT_SALE audit log for this specific plot
+      final plotLogs = allLogs.where((l) =>
+          l.entityType == 'Plot' &&
+          l.entityId == plot.id &&
+          l.action == 'LINK_PLOT_SALE'
+      ).toList()
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      for (final log in plotLogs) {
+        final match = RegExp(r'SaleId:([^;]+)').firstMatch(log.details);
+        if (match != null) {
+          final saleId = match.group(1);
+          final found = projectSales.where((s) => s.id == saleId).firstOrNull;
+          if (found != null) {
+            matchedSale = found;
+            break;
+          }
+        }
+      }
+
+      // 2. If not matched by explicit audit log, match candidate sales not linked to any other plot
+      if (matchedSale == null) {
+        final Set<String> otherPlotLinkedSaleIds = {};
+        for (final log in allLogs) {
+          if (log.entityType == 'Plot' &&
+              log.action == 'LINK_PLOT_SALE' &&
+              log.entityId != plot.id) {
+            final match = RegExp(r'SaleId:([^;]+)').firstMatch(log.details);
+            if (match != null) {
+              otherPlotLinkedSaleIds.add(match.group(1)!);
+            }
+          }
+        }
+
+        final unlinkedSales = projectSales
+            .where((s) => !otherPlotLinkedSaleIds.contains(s.id))
+            .toList();
+
+        // Exact price matching first
+        final priceMatch = unlinkedSales
+            .where((s) => (s.agreedPrice - plot.expectedPrice).abs() < 1.0)
+            .firstOrNull;
+
+        if (priceMatch != null) {
+          matchedSale = priceMatch;
+        } else if (unlinkedSales.isNotEmpty && plotLogs.isEmpty) {
+          if (unlinkedSales.length == 1) {
+            matchedSale = unlinkedSales.first;
+          }
+        }
+      }
+    }
+
+    final double sellingPrice = matchedSale != null ? matchedSale.agreedPrice : plot.expectedPrice;
+
+    // Direct / Capitalized plot expenses
+    final double plotDirectExpenses = projectExpenses.where((e) {
+      final n = (e.notes ?? '').toLowerCase();
+      return n.contains('plot ${plot.plotNumber.toLowerCase()}') || n.contains(plot.plotNumber.toLowerCase());
+    }).fold(0.0, (sum, e) => sum + e.amount);
+
+    final double actualPlotCost = plot.allocatedCost + plotDirectExpenses;
+
+    // Collect transactions & installments for this sale
+    List<InstallmentModel> relevantInstallments = [];
+    List<TransactionModel> relevantTransactions = [];
+
+    if (isPlotSoldOrBooked && matchedSale != null) {
+      relevantInstallments = allInstallments.where((inst) => inst.saleId == matchedSale!.id).toList();
+      final instIds = relevantInstallments.map((i) => i.id).toSet();
+      relevantTransactions = allTransactions
+          .where((t) => t.installmentId != null && instIds.contains(t.installmentId!) && !t.isVoided)
+          .toList()
+        ..sort((a, b) {
+          final cmp = b.paymentDate.compareTo(a.paymentDate);
+          if (cmp != 0) return cmp;
+          return b.createdAt.compareTo(a.createdAt);
+        });
+    }
+
+    // Total income collected for this plot
+    double totalIncomeReceived = 0.0;
+    if (isPlotSoldOrBooked) {
+      totalIncomeReceived = relevantTransactions.fold(0.0, (sum, t) => sum + t.amount);
+      if (totalIncomeReceived == 0.0 && relevantInstallments.isNotEmpty) {
+        totalIncomeReceived = relevantInstallments.fold(0.0, (sum, inst) => sum + inst.paidAmount);
+      }
+    }
+
+    final double remainingBalanceDue = isPlotSoldOrBooked
+        ? (sellingPrice - totalIncomeReceived).clamp(0.0, double.infinity)
+        : 0.0;
+    final bool isFullyPaid = isPlotSoldOrBooked &&
+        sellingPrice > 0 &&
+        (totalIncomeReceived >= (sellingPrice - 0.01) || remainingBalanceDue <= 0.01);
+    final double netProfit = sellingPrice > 0 ? (sellingPrice - actualPlotCost) : 0.0;
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -72,64 +261,172 @@ class PlotDetailsDialog extends ConsumerWidget {
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Container(
-        width: 620,
+        width: 960,
         padding: const EdgeInsets.all(24),
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
+          maxHeight: MediaQuery.of(context).size.height * 0.92,
         ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Dialog Header with Title & Status Badge
+              // Header Section with Full Visibility
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.grid_view_rounded, color: AppColors.accent, size: 24),
                         ),
-                        child: const Icon(Icons.grid_view_rounded, color: AppColors.accent, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Plot Details (${plot.plotNumber})',
-                            style: AppTypography.cardTitle,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Plot Details: #${plot.plotNumber}',
+                                style: AppTypography.cardTitle.copyWith(fontSize: 18),
+                              ),
+                              const SizedBox(height: 3),
+                              projectsAsync.when(
+                                data: (projects) {
+                                  final proj = projects.where((p) => p.id == plot.projectId).firstOrNull;
+                                  return Text(
+                                    proj != null
+                                        ? 'Project: ${proj.name} (${proj.code})'
+                                        : 'Project ID: ${plot.projectId}',
+                                    style: AppTypography.secondary.copyWith(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.accent,
+                                    ),
+                                  );
+                                },
+                                loading: () => Text('Loading project...', style: AppTypography.secondary.copyWith(fontSize: 13)),
+                                error: (e, s) => Text('Project ID: ${plot.projectId}', style: AppTypography.secondary.copyWith(fontSize: 13)),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          projectsAsync.when(
-                            data: (projects) {
-                              final proj = projects.where((p) => p.id == plot.projectId).firstOrNull;
-                              return Text(
-                                proj != null
-                                    ? 'Project: ${proj.name} (${proj.code})'
-                                    : 'Project ID: ${plot.projectId}',
-                                style: AppTypography.secondary.copyWith(fontSize: 12),
-                              );
-                            },
-                            loading: () => Text('Loading project...', style: AppTypography.secondary.copyWith(fontSize: 12)),
-                            error: (e, s) => Text('Project ID: ${plot.projectId}', style: AppTypography.secondary.copyWith(fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
-                  Row(
+                  const SizedBox(width: 12),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
                     children: [
-                      StatusBadge(
-                        label: plot.status.name.toUpperCase(),
-                        type: _getBadgeType(plot.status),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 15),
+                        label: const Text('Edit Plot', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          PlotEditDialog.show(context, plot);
+                        },
                       ),
-                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.add, size: 15),
+                        label: const Text('Add Expense', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          ExpenseFormDialog.show(
+                            context,
+                            preselectedProjectId: plot.projectId,
+                            preselectedPlotNumber: plot.plotNumber,
+                          );
+                        },
+                      ),
+                      if (isFullyPaid)
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.verified, size: 15),
+                          label: const Text('All Payments Paid', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'All agreement payments for Plot #${plot.plotNumber} have been fully cleared and received from ${matchedSale?.buyerName ?? "the customer"} (${CalculationEngine.formatCurrency(totalIncomeReceived)}). Remaining balance: ₹0.',
+                                ),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          },
+                        )
+                      else if (isPlotSoldOrBooked)
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.payments_outlined, size: 15),
+                          label: const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          onPressed: () {
+                            final unpaidInst = relevantInstallments.where((i) => !i.isFullyPaid).firstOrNull;
+                            Navigator.of(context).pop();
+                            PaymentRecordDialog.show(
+                              context,
+                              installment: unpaidInst,
+                              projectId: plot.projectId,
+                            );
+                          },
+                        )
+                      else if (!plot.isRoad)
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.storefront_outlined, size: 15),
+                          label: const Text('Book / Sell', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            SaleAgreementDialog.show(
+                              context,
+                              preselectedProjectId: plot.projectId,
+                            );
+                          },
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppColors.dangerText, size: 20),
+                        tooltip: 'Delete Plot',
+                        onPressed: () => _handleDeletePlot(context, ref),
+                      ),
+                      if (plot.isRoad)
+                        const StatusBadge(label: 'ROAD', type: BadgeType.info)
+                      else if (isFullyPaid)
+                        const StatusBadge(label: 'FULLY PAID', type: BadgeType.success)
+                      else
+                        StatusBadge(
+                          label: plot.status.name.toUpperCase(),
+                          type: _getBadgeType(plot.status),
+                        ),
                       IconButton(
                         icon: const Icon(Icons.close, color: AppColors.textSecondary),
                         onPressed: () => Navigator.of(context).pop(),
@@ -143,79 +440,74 @@ class PlotDetailsDialog extends ConsumerWidget {
               // Land Dimensions & Measurement Cards Header
               Text(
                 'Land Measurement & Dimensions Details',
-                style: AppTypography.secondary.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                ),
+                style: AppTypography.sectionTitle.copyWith(fontSize: 14),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
-              // Key Dimension & Area Summary Grid Cards
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceSubtle,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        _buildDetailMetricCard(
+              // Measurement Cards Grid (Responsive 2-column)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 14,
+                    children: [
+                      SizedBox(
+                        width: (constraints.maxWidth - 16) / 2,
+                        child: _buildDimensionCard(
+                          icon: Icons.straighten_outlined,
                           title: 'Plot Length',
                           value: lengthStr,
-                          icon: Icons.straighten,
-                          accentColor: AppColors.accent,
                         ),
-                        const SizedBox(width: 12),
-                        _buildDetailMetricCard(
+                      ),
+                      SizedBox(
+                        width: (constraints.maxWidth - 16) / 2,
+                        child: _buildDimensionCard(
+                          icon: Icons.straighten_outlined,
                           title: 'Plot Breadth / Width',
                           value: breadthStr,
-                          icon: Icons.straighten_outlined,
-                          accentColor: AppColors.accent,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildDetailMetricCard(
+                      ),
+                      SizedBox(
+                        width: (constraints.maxWidth - 16) / 2,
+                        child: _buildDimensionCard(
+                          icon: Icons.square_foot_outlined,
                           title: 'Primary Measurement',
-                          value: plot.formattedArea,
-                          icon: Icons.square_foot,
-                          accentColor: AppColors.accent,
+                          value: LandUnitConverter.formatLandMeasurement(
+                            areaSqFt: plot.areaSqFt,
+                            measurementUnit: plot.measurementUnit,
+                            displayArea: plot.displayArea,
+                            kattaValue: plot.kattaValue,
+                            dhurValue: plot.dhurValue,
+                          ),
                         ),
-                        const SizedBox(width: 12),
-                        _buildDetailMetricCard(
+                      ),
+                      SizedBox(
+                        width: (constraints.maxWidth - 16) / 2,
+                        child: _buildDimensionCard(
+                          icon: Icons.crop_free_outlined,
                           title: 'Area in Square Feet',
                           value: '${plot.areaSqFt.toStringAsFixed(1)} sq.ft',
-                          icon: Icons.aspect_ratio,
-                          accentColor: AppColors.infoText,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildDetailMetricCard(
-                          title: 'Kattha & Dhur Equivalent',
-                          value: '${kd.katta} Kattha ${kd.dhur} Dhur',
-                          icon: Icons.unfold_more,
-                          accentColor: AppColors.successText,
+                      ),
+                      SizedBox(
+                        width: (constraints.maxWidth - 16) / 2,
+                        child: _buildDimensionCard(
+                          icon: Icons.swap_vert_circle_outlined,
+                          title: 'Kattha Equivalent',
+                          value: '$totalKattaStr Kattha',
                         ),
-                        const SizedBox(width: 12),
-                        _buildDetailMetricCard(
+                      ),
+                      SizedBox(
+                        width: (constraints.maxWidth - 16) / 2,
+                        child: _buildDimensionCard(
+                          icon: Icons.layers_outlined,
                           title: 'Decimal Equivalent',
                           value: '$decimalVal Dec',
-                          icon: Icons.layers_outlined,
-                          accentColor: AppColors.warningText,
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
@@ -254,8 +546,8 @@ class PlotDetailsDialog extends ConsumerWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildUnitCell('Kattha', '${kd.katta}'),
-                          _buildUnitCell('Dhur', '${kd.dhur}'),
+                          _buildUnitCell('Kattha', totalKattaStr),
+                          _buildUnitCell('Dhur', totalDhurStr),
                           _buildUnitCell('Decimal', '$decimalVal'),
                           _buildUnitCell('Bigha', '$bighaVal'),
                           _buildUnitCell('Sq Meters', sqMeterVal),
@@ -267,87 +559,150 @@ class PlotDetailsDialog extends ConsumerWidget {
               ),
               const SizedBox(height: 18),
 
-              // Plot Financial Details Section
+              // Comprehensive Plot Financial Breakdown & Customer Ledger
               Text(
-                'Plot Financial Breakdown & Cost Allocation',
-                style: AppTypography.secondary.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                ),
+                'Plot Financial Breakdown & Customer Sales Ledger',
+                style: AppTypography.sectionTitle.copyWith(fontSize: 14),
               ),
               const SizedBox(height: 10),
 
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                  color: AppColors.surfaceVariant.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Allocated Cost Row with Formula Explainability
+                    // Selling Price to Customer Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
                           children: [
-                            Text('Allocated Project Cost:', style: AppTypography.body),
-                            const SizedBox(width: 4),
-                            FormulaInfoButton(
-                              figureTitle: 'Plot Cost Allocation (${plot.plotNumber})',
-                              plainWordsFormula:
-                                  'Allocated Plot Cost = (Plot Area / Total Project Area) * Actual Project Cost',
-                              terms: [
-                                FormulaTermDefinition(
-                                  term: 'Plot Area',
-                                  definition: 'Area of this specific plot in square feet.',
-                                  valueDisplay: '${plot.areaSqFt.round()} sq.ft',
-                                ),
-                                const FormulaTermDefinition(
-                                  term: 'Total Project Area',
-                                  definition: 'Total area of all plots in this project.',
-                                  valueDisplay: '2,27,000 sq.ft',
-                                ),
-                                const FormulaTermDefinition(
-                                  term: 'Actual Project Cost',
-                                  definition: 'Purchase price plus all capitalized expenses.',
-                                  valueDisplay: '₹2,27,00,000',
-                                ),
-                              ],
-                              calculatedResultDisplay:
-                                  CalculationEngine.formatCurrency(plot.allocatedCost),
+                            Text(
+                              isPlotSoldOrBooked && matchedSale != null
+                                  ? 'Total Plot Sell Price (Agreed to Customer):'
+                                  : 'Total Plot Sell Price (Kitne me bechenge):',
+                              style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
                             ),
+                            if (isPlotSoldOrBooked && matchedSale != null) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentLight,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Customer: ${matchedSale.buyerName}',
+                                  style: AppTypography.secondary.copyWith(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.accent,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         Text(
-                          CalculationEngine.formatCurrency(plot.allocatedCost),
-                          style: AppTypography.amountMedium.copyWith(fontSize: 15),
+                          sellingPrice > 0 ? CalculationEngine.formatCurrency(sellingPrice) : 'Not Set (₹0)',
+                          style: AppTypography.amountMedium.copyWith(
+                            fontSize: 16,
+                            color: AppColors.orangeText,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
 
-                    // Expected Sale Price Row
+                    // Actual Cost Row with Formula Explainability
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Expected Sale Price:', style: AppTypography.body),
+                        Row(
+                          children: [
+                            Text('Actual Cost (Land Cost + Expenses):', style: AppTypography.body),
+                            const SizedBox(width: 4),
+                            FormulaInfoButton(
+                              figureTitle: 'Plot Actual Cost (${plot.plotNumber})',
+                              plainWordsFormula:
+                                  'Actual Cost = Allocated Land Cost + Direct Site Expenses',
+                              terms: [
+                                FormulaTermDefinition(
+                                  term: 'Allocated Land Cost',
+                                  definition: 'Proportionate cost allocated from master land purchase.',
+                                  valueDisplay: CalculationEngine.formatCurrency(plot.allocatedCost),
+                                ),
+                                FormulaTermDefinition(
+                                  term: 'Direct Plot Expenses',
+                                  definition: 'Site development, registry, or fencing expenses recorded for this plot.',
+                                  valueDisplay: CalculationEngine.formatCurrency(plotDirectExpenses),
+                                ),
+                              ],
+                              calculatedResultDisplay: CalculationEngine.formatCurrency(actualPlotCost),
+                            ),
+                          ],
+                        ),
                         Text(
-                          plot.expectedPrice > 0
-                              ? CalculationEngine.formatCurrency(plot.expectedPrice)
-                              : 'Not Set (₹0)',
+                          CalculationEngine.formatCurrency(actualPlotCost),
                           style: AppTypography.amountMedium.copyWith(
                             fontSize: 15,
-                            color: plot.expectedPrice > 0 ? AppColors.successText : AppColors.textMuted,
+                            color: AppColors.warningText,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Total Income Received Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Total Income Received (Paid by Customer):', style: AppTypography.body),
+                        Text(
+                          isPlotSoldOrBooked
+                              ? CalculationEngine.formatCurrency(totalIncomeReceived)
+                              : '₹0 (Not Sold)',
+                          style: AppTypography.amountMedium.copyWith(
+                            fontSize: 15,
+                            color: isPlotSoldOrBooked ? AppColors.successText : AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Remaining Balance Due Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Remaining Balance Due:', style: AppTypography.body),
+                        Text(
+                          isFullyPaid
+                              ? '₹0 (All Payments Paid)'
+                              : isPlotSoldOrBooked
+                                  ? CalculationEngine.formatCurrency(remainingBalanceDue)
+                                  : '₹0 (Plot is Available)',
+                          style: AppTypography.amountMedium.copyWith(
+                            fontSize: 15,
+                            color: isFullyPaid
+                                ? AppColors.successText
+                                : isPlotSoldOrBooked && remainingBalanceDue > 0
+                                    ? AppColors.dangerText
+                                    : AppColors.textSecondary,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                     const Divider(height: 20),
 
-                    // Estimated Profit & Cost / Price per Sq Ft
+                    // Estimated Profit & Unit Rates
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -361,17 +716,244 @@ class PlotDetailsDialog extends ConsumerWidget {
                         ),
                         _buildSubMetric(
                           label: 'Estimated Net Profit',
-                          value: plot.expectedPrice > 0
-                              ? CalculationEngine.formatCurrency(expectedProfit)
-                              : 'N/A',
-                          valueColor: expectedProfit >= 0 ? AppColors.successText : AppColors.dangerText,
+                          value: sellingPrice > 0 ? CalculationEngine.formatCurrency(netProfit) : 'N/A',
+                          valueColor: netProfit >= 0 ? AppColors.successText : AppColors.dangerText,
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
+
+              // Customer Payment History Section (Jab Customer ne Payment Diya)
+              Text(
+                'Customer Payment History (Jab Customer ne Payment Diya)',
+                style: AppTypography.sectionTitle.copyWith(fontSize: 14),
+              ),
+              const SizedBox(height: 10),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surfaceSubtle,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
+                        border: Border(bottom: BorderSide(color: AppColors.border)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.history_edu_outlined, size: 16, color: AppColors.accent),
+                              const SizedBox(width: 8),
+                              Text(
+                                isPlotSoldOrBooked && matchedSale != null
+                                    ? 'Payment Transactions for Customer: ${matchedSale.buyerName}'
+                                    : 'Plot Payment Schedule & Receipts',
+                                style: AppTypography.body.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isFullyPaid)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.check_circle, size: 14, color: AppColors.successText),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'All Agreement Payments Paid',
+                                    style: AppTypography.secondary.copyWith(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.successText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else if (isPlotSoldOrBooked)
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                minimumSize: const Size(0, 28),
+                              ),
+                              icon: const Icon(Icons.add, size: 13),
+                              label: const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                              onPressed: () {
+                                final unpaidInst = relevantInstallments.where((i) => !i.isFullyPaid).firstOrNull;
+                                Navigator.of(context).pop();
+                                PaymentRecordDialog.show(
+                                  context,
+                                  installment: unpaidInst,
+                                  projectId: plot.projectId,
+                                );
+                              },
+                            )
+                          else if (!plot.isRoad)
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                minimumSize: const Size(0, 28),
+                              ),
+                              icon: const Icon(Icons.assignment_outlined, size: 13),
+                              label: const Text('Create Sale Agreement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                SaleAgreementDialog.show(
+                                  context,
+                                  preselectedProjectId: plot.projectId,
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (isPlotSoldOrBooked && relevantTransactions.isNotEmpty)
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: relevantTransactions.length,
+                        separatorBuilder: (ctx, i) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final tx = relevantTransactions[index];
+                          final formattedTxDate = DateFormat('dd MMM yyyy').format(tx.paymentDate);
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_outline, color: AppColors.successText, size: 18),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Paid on: $formattedTxDate',
+                                          style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Mode: ${tx.paymentMethod.name.toUpperCase()} ${tx.referenceNumber != null && tx.referenceNumber!.isNotEmpty ? "• Ref: ${tx.referenceNumber}" : ""}',
+                                          style: AppTypography.secondary.copyWith(fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      CalculationEngine.formatCurrency(tx.amount),
+                                      style: AppTypography.amountMedium.copyWith(
+                                        fontSize: 14,
+                                        color: AppColors.successText,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const StatusBadge(label: 'CLEARED / PAID', type: BadgeType.success),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      )
+                    else if (isPlotSoldOrBooked && relevantInstallments.isNotEmpty)
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: relevantInstallments.length,
+                        separatorBuilder: (ctx, i) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final inst = relevantInstallments[index];
+                          final formattedDueDate = DateFormat('dd MMM yyyy').format(inst.dueDate);
+                          final isPaid = inst.paidAmount >= inst.dueAmount;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isPaid ? Icons.check_circle : Icons.schedule,
+                                      color: isPaid ? AppColors.successText : AppColors.warningText,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Installment #${inst.installmentNumber} • Due: $formattedDueDate',
+                                          style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Paid: ${CalculationEngine.formatCurrency(inst.paidAmount)} of ${CalculationEngine.formatCurrency(inst.dueAmount)}',
+                                          style: AppTypography.secondary.copyWith(fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                StatusBadge(
+                                  label: isPaid ? 'PAID' : inst.status.name.toUpperCase(),
+                                  type: isPaid ? BadgeType.success : BadgeType.warning,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: AppColors.textMuted, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                !isPlotSoldOrBooked
+                                    ? 'This plot is currently Available (Not Sold). No customer payments or installments exist for this plot yet. Click "+ Create Sale Agreement" to sell or book this plot to a customer.'
+                                    : 'No payment transactions recorded for this plot yet. Once installments/receipts are recorded, payment dates and amounts will be tracked here.',
+                                style: AppTypography.secondary.copyWith(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Metadata Row
               Row(
@@ -407,48 +989,53 @@ class PlotDetailsDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailMetricCard({
+  Widget _buildDimensionCard({
     required String title,
     required String value,
     required IconData icon,
-    required Color accentColor,
+    Color accentColor = AppColors.accent,
   }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: accentColor),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTypography.secondary.copyWith(fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: AppTypography.body.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: AppColors.textPrimary,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
             ),
-          ],
-        ),
+            child: Icon(icon, size: 18, color: accentColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.secondary.copyWith(fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTypography.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

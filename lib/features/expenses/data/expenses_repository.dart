@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/calculation_engine.dart';
+import '../../plots/data/plots_repository.dart';
 import '../domain/expense_model.dart';
 
 class ExpensesRepository {
@@ -121,5 +122,8 @@ class ExpensesRepository {
         actualCost: Value(newActualCost),
       ),
     );
+
+    final plotsRepo = PlotsRepository(_db);
+    await plotsRepo.recalculateProjectCostAllocation(projectId);
   }
 }

@@ -117,12 +117,34 @@ void main() {
         userId: 'admin_user',
       );
 
+      // Agreement Document is optional - should successfully allocate without doc
+      final created = await investorsRepo.addProjectInvestment(
+        projectId: proj.id,
+        investorId: inv.id,
+        investedAmount: 5000000,
+        agreementDocPath: null, // Optional document reference
+        userId: 'admin_user',
+      );
+
+      expect(created.ownershipPercent, equals(100.0));
+      expect(created.investedAmount, equals(5000000.0));
+
+      final investments = await investorsRepo.getProjectInvestors(proj.id);
+      expect(investments.length, 1);
+      expect(investments.first.investorId, inv.id);
+      expect(investments.first.investedAmount, 5000000);
+
+      // Global recalculate check
+      await investorsRepo.recalculateAllCapitalBasedOwnership();
+      final afterRecalc = await investorsRepo.getProjectInvestors(proj.id);
+      expect(afterRecalc.first.ownershipPercent, equals(100.0));
+
+      // Negative amount should throw ArgumentError
       expect(
         () => investorsRepo.addProjectInvestment(
           projectId: proj.id,
           investorId: inv.id,
-          investedAmount: 5000000,
-          agreementDocPath: '  ', // Empty document reference
+          investedAmount: -1000,
           userId: 'admin_user',
         ),
         throwsA(isA<ArgumentError>()),

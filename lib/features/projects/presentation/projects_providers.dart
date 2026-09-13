@@ -1,13 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
-import '../../../core/database/database_seeder.dart';
 import '../data/projects_repository.dart';
 import '../domain/project_model.dart';
 
-/// AppDatabase singleton provider with automatic database seeder initialization
+/// AppDatabase singleton provider
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
-  DatabaseSeeder.seedInitialDataIfEmpty(db);
   ref.onDispose(() => db.close());
   return db;
 });
@@ -24,9 +22,11 @@ final projectsListStreamProvider = StreamProvider<List<ProjectModel>>((ref) {
   return repo.watchAllProjects();
 });
 
-/// Single project by ID provider
-final projectByIdProvider =
-    FutureProvider.family<ProjectModel?, String>((ref, id) async {
+/// Single project by ID stream provider
+final projectDetailStreamProvider =
+    StreamProvider.family<ProjectModel?, String>((ref, id) {
   final repo = ref.watch(projectsRepositoryProvider);
-  return repo.getProjectById(id);
+  return repo.watchProjectById(id);
 });
+
+final projectByIdProvider = projectDetailStreamProvider;

@@ -185,6 +185,11 @@ class LandownersListScreen extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
+                            icon: const Icon(Icons.edit_outlined, color: AppColors.accent, size: 18),
+                            tooltip: 'Edit Landowner Profile',
+                            onPressed: () => LandownerFormDialog.show(context, landowner: landowner),
+                          ),
+                          IconButton(
                             icon: const Icon(Icons.add, color: AppColors.accent, size: 20),
                             tooltip: 'Create Purchase Agreement',
                             onPressed: () => PurchaseAgreementDialog.show(
@@ -272,7 +277,7 @@ class LandownersListScreen extends ConsumerWidget {
     if (confirmed == true && context.mounted) {
       try {
         final repo = ref.read(landownersRepositoryProvider);
-        await repo.deleteLandowner(landowner.id, userId: 'admin_user');
+        await repo.deleteLandowner(landowner.id, userId: 'admin_user', cascade: true);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Landowner "${landowner.name}" deleted successfully!')),

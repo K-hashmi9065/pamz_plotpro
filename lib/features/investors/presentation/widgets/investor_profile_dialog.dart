@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
 import '../../../../shared/widgets/page/custom_data_table.dart';
+import '../../../projects/presentation/projects_providers.dart';
 import '../../domain/investor_model.dart';
 import '../investors_providers.dart';
+import 'investor_agreement_pdf_dialog.dart';
 
 class InvestorProfileDialog extends ConsumerWidget {
   final InvestorModel investor;
@@ -27,7 +28,8 @@ class InvestorProfileDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final participationsAsync = ref.watch(investorProjectsStreamProvider(investor.id));
-    final formattedDate = DateFormat('dd MMM yyyy').format(investor.createdAt);
+    final summaryAsync = ref.watch(investorFinancialSummaryFutureProvider(investor.id));
+    final projectsAsync = ref.watch(projectsListStreamProvider);
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -35,25 +37,34 @@ class InvestorProfileDialog extends ConsumerWidget {
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Container(
-        width: 680,
+        width: 760,
+        height: 640,
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header Bar
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.person_outline, color: AppColors.accent, size: 24),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Investor Profile: ${investor.name}',
-                      style: AppTypography.cardTitle,
+                    CircleAvatar(
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      child: const Icon(Icons.person, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(investor.name, style: AppTypography.cardTitle),
+                        Text(
+                          'Phone: ${investor.phone}  •  PAN: ${investor.pan ?? "N/A"}  •  Email: ${investor.email ?? "N/A"}',
+                          style: AppTypography.secondary.copyWith(fontSize: 12),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -63,78 +74,59 @@ class InvestorProfileDialog extends ConsumerWidget {
                 ),
               ],
             ),
-            const Divider(),
-            const SizedBox(height: 16),
+            const Divider(height: 24),
 
-            // Profile info card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
+            // Financial Summary Metrics Cards
+            summaryAsync.when(
+              loading: () => const SizedBox(
+                height: 80,
+                child: Center(child: CircularProgressIndicator()),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Phone Number', style: AppTypography.secondary),
-                        const SizedBox(height: 2),
-                        Text(investor.phone, style: AppTypography.body.copyWith(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 12),
-                        Text('Email Address', style: AppTypography.secondary),
-                        const SizedBox(height: 2),
-                        Text(investor.email ?? '—', style: AppTypography.body),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('PAN Card', style: AppTypography.secondary),
-                        const SizedBox(height: 2),
-                        Text(investor.pan ?? '—', style: AppTypography.body.copyWith(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 12),
-                        Text('Registered Date', style: AppTypography.secondary),
-                        const SizedBox(height: 2),
-                        Text(formattedDate, style: AppTypography.body),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              error: (err, stack) => Text('Error loading summary: $err', style: AppTypography.secondary),
+              data: (summary) {
+                return Row(
+                  children: [
+                    _buildMetricCard('Total Capital Invested', CalculationEngine.formatCurrency(summary.totalInvestedCapital), AppColors.accent),
+                    const SizedBox(width: 12),
+                    _buildMetricCard('Profit Share Earned', CalculationEngine.formatCurrency(summary.totalProfitEarned), AppColors.successText),
+                    const SizedBox(width: 12),
+                    _buildMetricCard('Withdrawn Payouts', CalculationEngine.formatCurrency(summary.totalWithdrawnPayouts), AppColors.warningText),
+                    const SizedBox(width: 12),
+                    _buildMetricCard('Net Balance Remaining', CalculationEngine.formatCurrency(summary.netRemainingBalance), AppColors.primary),
+                  ],
+                );
+              },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
+            // Project Participations Table
             Text(
-              'Project Participations (Multi-Project)',
-              style: AppTypography.sectionTitle.copyWith(fontSize: 15),
+              'Project Participations & Equity Ownership',
+              style: AppTypography.secondary.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+                fontSize: 13,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
-            // Participations table
-            SizedBox(
-              height: 220,
+            Expanded(
               child: participationsAsync.when(
                 loading: () => const CustomDataTable(columns: [], rows: [], isLoading: true),
-                error: (err, stack) => Center(
-                  child: Text(
-                    'Error loading participations: $err',
-                    style: AppTypography.body.copyWith(color: AppColors.dangerText),
-                  ),
-                ),
+                error: (err, stack) => Text('Error loading participations: $err'),
                 data: (participations) {
                   return CustomDataTable(
                     columns: const [
                       DataTableColumn(label: 'Project Name'),
-                      DataTableColumn(label: 'Contribution', width: 160),
-                      DataTableColumn(label: 'Ownership %', width: 130),
-                      DataTableColumn(label: 'Method', width: 140),
+                      DataTableColumn(label: 'Contribution', width: 150),
+                      DataTableColumn(label: 'Ownership %', width: 110),
+                      DataTableColumn(label: 'Method', width: 120),
+                      DataTableColumn(label: 'Agreement PDF', width: 120, alignment: Alignment.center),
                     ],
                     rows: participations.map((p) {
+                      final projects = projectsAsync.value ?? [];
+                      final proj = projects.where((projItem) => projItem.id == p.projectId).firstOrNull;
+
                       return [
                         Text(
                           p.investorName, // Contains Project Name
@@ -157,6 +149,29 @@ class InvestorProfileDialog extends ConsumerWidget {
                         Text(
                           p.ownershipMethod.name.toUpperCase(),
                           style: AppTypography.secondary.copyWith(fontSize: 12),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.picture_as_pdf, color: AppColors.accent, size: 18),
+                          tooltip: 'Generate / View Investor Agreement PDF',
+                          onPressed: () {
+                            if (proj != null) {
+                              InvestorAgreementPdfDialog.show(
+                                context,
+                                investorName: investor.name,
+                                investorPhone: investor.phone,
+                                investorPan: investor.pan,
+                                investorEmail: investor.email,
+                                projectName: proj.name,
+                                projectCode: proj.code,
+                                projectLocation: proj.location,
+                                projectLandAreaSqFt: proj.landAreaSqFt,
+                                investedAmount: p.investedAmount,
+                                ownershipPercent: p.ownershipPercent,
+                                ownershipMethod: p.ownershipMethod,
+                                agreementDate: p.createdAt,
+                              );
+                            }
+                          },
                         ),
                       ];
                     }).toList(),
@@ -323,6 +338,34 @@ class InvestorProfileDialog extends ConsumerWidget {
                   child: const Text('Close'),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AppTypography.secondary.copyWith(fontSize: 11)),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: AppTypography.body.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: color,
+              ),
             ),
           ],
         ),

@@ -7,6 +7,8 @@ import '../../../../shared/widgets/searchable_investor_dropdown.dart';
 import '../../../../shared/widgets/searchable_project_dropdown.dart';
 import '../../../projects/presentation/projects_providers.dart';
 import '../investors_providers.dart';
+import '../../../../core/utils/calculation_engine.dart';
+import 'investor_agreement_pdf_dialog.dart';
 
 class ProjectInvestmentDialog extends ConsumerStatefulWidget {
   final String? preselectedProjectId;
@@ -43,8 +45,8 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
   final _docController = TextEditingController();
   final _manualPercentController = TextEditingController();
 
-  final ValueNotifier<String?> _selectedProjectIdNotifier = ValueNotifier<String?>(null);
-  final ValueNotifier<String?> _selectedInvestorIdNotifier = ValueNotifier<String?>(null);
+  late final ValueNotifier<String?> _selectedProjectIdNotifier;
+  late final ValueNotifier<String?> _selectedInvestorIdNotifier;
   final ValueNotifier<OwnershipMethod> _methodNotifier = ValueNotifier<OwnershipMethod>(OwnershipMethod.capitalBased);
   final ValueNotifier<bool> _isSavingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> _errorMessageNotifier = ValueNotifier<String?>(null);
@@ -52,8 +54,8 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
   @override
   void initState() {
     super.initState();
-    _selectedProjectIdNotifier.value = widget.preselectedProjectId;
-    _selectedInvestorIdNotifier.value = widget.preselectedInvestorId;
+    _selectedProjectIdNotifier = ValueNotifier<String?>(widget.preselectedProjectId);
+    _selectedInvestorIdNotifier = ValueNotifier<String?>(widget.preselectedInvestorId);
   }
 
   @override
@@ -81,10 +83,6 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
     }
 
     final docPath = _docController.text.trim();
-    if (docPath.isEmpty) {
-      _errorMessageNotifier.value = 'Investor Agreement Document * is required to save investment.';
-      return;
-    }
 
     _isSavingNotifier.value = true;
     _errorMessageNotifier.value = null;
@@ -96,11 +94,11 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
           ? double.tryParse(_manualPercentController.text.trim())
           : null;
 
-      await repo.addProjectInvestment(
+      final createdInvestment = await repo.addProjectInvestment(
         projectId: _selectedProjectIdNotifier.value!,
         investorId: _selectedInvestorIdNotifier.value!,
         investedAmount: amount,
-        agreementDocPath: docPath,
+        agreementDocPath: docPath.isNotEmpty ? docPath : null,
         method: _methodNotifier.value,
         manualOwnershipPercent: manualPercent,
         userId: 'admin_user',
@@ -109,10 +107,37 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
       if (mounted) {
         final messenger = ScaffoldMessenger.of(context);
         final navigator = Navigator.of(context);
+        final projId = _selectedProjectIdNotifier.value!;
+        final invId = _selectedInvestorIdNotifier.value!;
+        final method = _methodNotifier.value;
+
+        final projects = ref.read(projectsListStreamProvider).value ?? [];
+        final investors = ref.read(investorsListStreamProvider).value ?? [];
+        final proj = projects.where((p) => p.id == projId).firstOrNull;
+        final inv = investors.where((i) => i.id == invId).firstOrNull;
+
         navigator.pop();
         messenger.showSnackBar(
-          const SnackBar(content: Text('Capital investment & Ownership % allocated successfully!')),
+          const SnackBar(content: Text('Investor Agreement created! Opening PDF...')),
         );
+
+        if (proj != null && inv != null) {
+          InvestorAgreementPdfDialog.show(
+            context,
+            investorName: inv.name,
+            investorPhone: inv.phone,
+            investorPan: inv.pan,
+            investorEmail: inv.email,
+            projectName: proj.name,
+            projectCode: proj.code,
+            projectLocation: proj.location,
+            projectLandAreaSqFt: proj.landAreaSqFt,
+            investedAmount: amount,
+            ownershipPercent: createdInvestment.ownershipPercent,
+            ownershipMethod: method,
+            agreementDate: createdInvestment.createdAt,
+          );
+        }
       }
     } catch (e) {
       _errorMessageNotifier.value = e.toString().replaceAll('ArgumentError: ', '');
@@ -132,8 +157,9 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
       ),
       backgroundColor: AppColors.surface,
       child: Container(
-        width: 540,
+        width: 580,
         constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.95,
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         padding: const EdgeInsets.all(24),
@@ -149,7 +175,7 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Allocate Project Capital & Ownership', style: AppTypography.cardTitle),
+                      Text('Investor Capital & Project Ownership Agreement', style: AppTypography.cardTitle),
                       IconButton(
                         icon: const Icon(Icons.close, color: AppColors.textSecondary),
                         onPressed: isSaving ? null : () => Navigator.of(context).pop(),
@@ -259,21 +285,13 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
                               return null;
                             },
                           ),
-                          const SizedBox(height: 14),
-
-                          // Agreement Document Reference * (AC-03.3 MANDATORY REQUIREMENT)
+                          const SizedBox(height: 14),                          // Agreement Document Reference (Optional)
                           TextFormField(
                             controller: _docController,
                             decoration: const InputDecoration(
-                              labelText: 'Investor Agreement Document File/Ref *',
+                              labelText: 'Investor Agreement Document File/Ref (Optional)',
                               hintText: 'e.g. investor_agreement_kamran_prj001.pdf',
                             ),
-                            validator: (val) {
-                              if (val == null || val.trim().isEmpty) {
-                                return 'Agreement Document * is required per AC-03.3';
-                              }
-                              return null;
-                            },
                           ),
                           const SizedBox(height: 14),
 
@@ -323,25 +341,85 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
                   const SizedBox(height: 16),
 
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      OutlinedButton(
-                        onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.picture_as_pdf, size: 16, color: AppColors.accent),
+                        label: const Text('Preview PDF'),
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                final projId = _selectedProjectIdNotifier.value;
+                                final invId = _selectedInvestorIdNotifier.value;
+                                if (projId == null || invId == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please select both a Project and an Investor first.')),
+                                  );
+                                  return;
+                                }
+                                final projects = ref.read(projectsListStreamProvider).value ?? [];
+                                final investors = ref.read(investorsListStreamProvider).value ?? [];
+                                final proj = projects.where((p) => p.id == projId).firstOrNull;
+                                final inv = investors.where((i) => i.id == invId).firstOrNull;
+                                if (proj != null && inv != null) {
+                                  final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
+                                  final manualPercent = _methodNotifier.value == OwnershipMethod.manual
+                                      ? double.tryParse(_manualPercentController.text.trim())
+                                      : null;
+
+                                  double pct = 0.0;
+                                  if (_methodNotifier.value == OwnershipMethod.manual) {
+                                    pct = manualPercent ?? 0.0;
+                                  } else {
+                                    final repo = ref.read(investorsRepositoryProvider);
+                                    final existingInvestors = await repo.getProjectInvestors(projId);
+                                    final totalExisting = existingInvestors.fold<double>(0.0, (sum, item) => sum + item.investedAmount);
+                                    final totalShareCapital = totalExisting + amount;
+                                    pct = CalculationEngine.calculateInvestorOwnershipPercent(
+                                      investorContribution: amount,
+                                      totalShareCapital: totalShareCapital,
+                                    );
+                                  }
+
+                                  if (!context.mounted) return;
+                                  InvestorAgreementPdfDialog.show(
+                                    context,
+                                    investorName: inv.name,
+                                    investorPhone: inv.phone,
+                                    investorPan: inv.pan,
+                                    investorEmail: inv.email,
+                                    projectName: proj.name,
+                                    projectCode: proj.code,
+                                    projectLocation: proj.location,
+                                    projectLandAreaSqFt: proj.landAreaSqFt,
+                                    investedAmount: amount,
+                                    ownershipPercent: pct,
+                                    ownershipMethod: _methodNotifier.value,
+                                  );
+                                }
+                              },
                       ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: isSaving ? null : _submit,
-                        child: isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Allocate Investment'),
+                      Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: isSaving ? null : () => Navigator.of(context).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: isSaving ? null : _submit,
+                            child: isSaving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('Create Agreement'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -354,3 +432,6 @@ class _ProjectInvestmentDialogState extends ConsumerState<ProjectInvestmentDialo
     );
   }
 }
+
+/// Alias for convenient discovery matching Landowner PurchaseAgreementDialog
+typedef InvestorAgreementDialog = ProjectInvestmentDialog;

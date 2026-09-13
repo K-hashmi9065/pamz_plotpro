@@ -68,6 +68,12 @@ abstract class AppTypography {
         color: AppColors.textPrimary,
       );
 
+  static TextStyle get caption => GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppColors.textSecondary,
+      );
+
   static TextStyle get helperError => GoogleFonts.inter(
         fontSize: 11,
         fontWeight: FontWeight.w400,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/land_unit_converter.dart';
 import '../../../../core/widgets/land_measurement_input_widget.dart';
 import '../../../../shared/widgets/searchable_landowner_dropdown.dart';
 import '../../domain/project_model.dart';
@@ -35,6 +36,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _locationController;
+  late TextEditingController _ratePerKattaController;
   late TextEditingController _priceController;
   late TextEditingController _descriptionController;
 
@@ -59,7 +61,13 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
     final p = widget.projectToEdit;
     _nameController = TextEditingController(text: p?.name ?? '');
     _locationController = TextEditingController(text: p?.location ?? '');
-    _priceController = TextEditingController(text: p?.purchasePrice.toString() ?? '');
+    _priceController = TextEditingController(
+      text: p != null && p.purchasePrice > 0
+          ? (p.purchasePrice == p.purchasePrice.roundToDouble()
+              ? p.purchasePrice.toInt().toString()
+              : p.purchasePrice.toString())
+          : '',
+    );
     _descriptionController = TextEditingController(text: p?.description ?? '');
 
     _selectedLandownerIdNotifier = ValueNotifier<String?>(p?.landownerId);
@@ -76,12 +84,26 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
       _breadthIn = p.breadthIn ?? (p.breadthFt != null ? 0.0 : null);
       _areaSqFt = p.landAreaSqFt;
     }
+
+    // Compute initial rate per kattha if price & area exist
+    String initialRateStr = '';
+    if (p != null && p.purchasePrice > 0 && p.landAreaSqFt > 0) {
+      final totalKattha = LandUnitConverter.sqFtToKatta(p.landAreaSqFt);
+      if (totalKattha > 0) {
+        final rate = p.purchasePrice / totalKattha;
+        initialRateStr = rate == rate.roundToDouble()
+            ? rate.toInt().toString()
+            : rate.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+      }
+    }
+    _ratePerKattaController = TextEditingController(text: initialRateStr);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _locationController.dispose();
+    _ratePerKattaController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
     _selectedLandownerIdNotifier.dispose();
@@ -89,6 +111,54 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
     _isSavingNotifier.dispose();
     _errorMessageNotifier.dispose();
     super.dispose();
+  }
+
+  void _onRatePerKattaChanged() {
+    final rawRate = _ratePerKattaController.text.trim();
+    if (rawRate.isEmpty) return;
+    final rate = double.tryParse(rawRate);
+    if (rate == null || rate <= 0) return;
+
+    final totalKattha = LandUnitConverter.sqFtToKatta(_areaSqFt);
+    if (totalKattha > 0) {
+      final totalPrice = totalKattha * rate;
+      final formattedPrice = totalPrice == totalPrice.roundToDouble()
+          ? totalPrice.toInt().toString()
+          : totalPrice.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+      _priceController.text = formattedPrice;
+    }
+  }
+
+  void _onPriceChanged() {
+    final rawPrice = _priceController.text.trim();
+    if (rawPrice.isEmpty) return;
+    final price = double.tryParse(rawPrice);
+    if (price == null || price <= 0) return;
+
+    final totalKattha = LandUnitConverter.sqFtToKatta(_areaSqFt);
+    if (totalKattha > 0) {
+      final computedRate = price / totalKattha;
+      final formattedRate = computedRate == computedRate.roundToDouble()
+          ? computedRate.toInt().toString()
+          : computedRate.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+      _ratePerKattaController.text = formattedRate;
+    }
+  }
+
+  void _recalculatePurchasePriceFromRate() {
+    final rawRate = _ratePerKattaController.text.trim();
+    if (rawRate.isEmpty) return;
+    final rate = double.tryParse(rawRate);
+    if (rate != null && rate > 0) {
+      final totalKattha = LandUnitConverter.sqFtToKatta(_areaSqFt);
+      if (totalKattha > 0) {
+        final totalPrice = totalKattha * rate;
+        final formattedPrice = totalPrice == totalPrice.roundToDouble()
+            ? totalPrice.toInt().toString()
+            : totalPrice.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '');
+        _priceController.text = formattedPrice;
+      }
+    }
   }
 
   Future<void> _createNewLandowner() async {
@@ -118,6 +188,16 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
 
     try {
       final repo = ref.read(projectsRepositoryProvider);
+      final isTaken = await repo.isProjectNameTaken(
+        name,
+        excludeProjectId: widget.projectToEdit?.id,
+      );
+      if (isTaken) {
+        _errorMessageNotifier.value = 'A project named "$name" already exists. Project names must be unique.';
+        _isSavingNotifier.value = false;
+        return;
+      }
+
       if (widget.projectToEdit == null) {
         final newProject = await repo.createProject(
           name: name,
@@ -167,7 +247,11 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
       }
     } catch (e) {
       if (mounted) {
-        _errorMessageNotifier.value = e.toString().replaceAll('Exception: ', '');
+        _errorMessageNotifier.value = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('ArgumentError: ', '')
+            .replaceAll('Invalid argument(s): ', '');
         _isSavingNotifier.value = false;
       }
     }
@@ -246,15 +330,19 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
               // Form Scrollable Area
               Flexible(
                 child: SingleChildScrollView(
+                  clipBehavior: Clip.none,
+                  padding: const EdgeInsets.only(top: 8, bottom: 8, left: 2, right: 2),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Project Name Input
                       TextFormField(
                         controller: _nameController,
+                        style: AppTypography.body.copyWith(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           labelText: 'Project Name *',
                           hintText: 'e.g. PAMZ Green Valley Enclave',
+                          floatingLabelBehavior: FloatingLabelBehavior.auto,
                         ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {
@@ -268,6 +356,7 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                       // Location Input
                       TextFormField(
                         controller: _locationController,
+                        style: AppTypography.body.copyWith(color: AppColors.textPrimary),
                         decoration: const InputDecoration(
                           labelText: 'Location / Survey Site *',
                           hintText: 'e.g. Plot 42, Sitamarhi Highway, Ward 12',
@@ -370,25 +459,46 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                           _lengthIn = lengthIn;
                           _breadthFt = breadthFt;
                           _breadthIn = breadthIn;
+                          _recalculatePurchasePriceFromRate();
                         },
                       ),
                       const SizedBox(height: 14),
 
-                      // Purchase Price & Status Row
+                      // Rate per Kattha, Purchase Price & Status Row
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _ratePerKattaController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Rate per Kattha (Optional)',
+                                hintText: 'e.g. 500000',
+                                prefixText: '₹ ',
+                                suffixText: '/ Kattha',
+                              ),
+                              onChanged: (_) => _onRatePerKattaChanged(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 3,
                             child: TextFormField(
                               controller: _priceController,
-                              keyboardType: TextInputType.number,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               decoration: const InputDecoration(
                                 labelText: 'Land Purchase Price (Optional)',
                                 hintText: 'e.g. 20000000',
+                                prefixText: '₹ ',
                               ),
+                              onChanged: (_) => _onPriceChanged(),
                             ),
                           ),
-                          const SizedBox(width: 14),
+                          const SizedBox(width: 12),
                           Expanded(
+                            flex: 2,
                             child: ValueListenableBuilder<ProjectStatus>(
                               valueListenable: _selectedStatusNotifier,
                               builder: (context, selectedStatus, _) {

@@ -455,10 +455,29 @@ class _PaymentRecordDialogState extends ConsumerState<PaymentRecordDialog> {
                                     'Due Date: ${DateFormat('dd MMM yyyy').format(selectedInstallment.dueDate)} | Total Due: ${CalculationEngine.formatCurrency(selectedInstallment.dueAmount)}',
                                     style: AppTypography.secondary,
                                   ),
-                                  Text(
-                                    'Remaining Balance: ${CalculationEngine.formatCurrency(selectedInstallment.remainingAmount)}',
-                                    style: AppTypography.secondary.copyWith(color: AppColors.accent),
-                                  ),
+                                  const SizedBox(height: 2),
+                                  if (selectedInstallment.remainingAmount <= 0)
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.check_circle, color: AppColors.successText, size: 14),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Status: Fully Paid & Cleared (Balance: ₹0)',
+                                          style: AppTypography.secondary.copyWith(
+                                            color: AppColors.successText,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    Text(
+                                      'Remaining Balance: ${CalculationEngine.formatCurrency(selectedInstallment.remainingAmount)}',
+                                      style: AppTypography.secondary.copyWith(
+                                        color: AppColors.accent,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                 ],
                               ),
                             );

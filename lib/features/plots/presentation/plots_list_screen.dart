@@ -10,10 +10,14 @@ import '../../../shared/providers/navigation_providers.dart';
 import '../../../shared/widgets/page/custom_data_table.dart';
 import '../../../shared/widgets/page/page_header.dart';
 import '../../../shared/widgets/page/status_badge.dart';
+import '../../expenses/presentation/widgets/expense_form_dialog.dart';
 import '../../projects/presentation/projects_providers.dart';
 import 'plots_providers.dart';
 import 'widgets/plot_details_dialog.dart';
+import 'widgets/plot_edit_dialog.dart';
 import 'widgets/plot_subdivision_dialog.dart';
+import 'widgets/road_creation_dialog.dart';
+import '../domain/plot_model.dart';
 
 final plotsSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 final plotsStatusFilterProvider = StateProvider.autoDispose<PlotStatus?>((ref) => null);
@@ -21,6 +25,55 @@ final plotsSelectedProjectIdProvider = StateProvider.autoDispose<String?>((ref) 
 
 class PlotsListScreen extends ConsumerWidget {
   const PlotsListScreen({super.key});
+
+  Future<void> _handleDeletePlot(BuildContext context, WidgetRef ref, PlotModel plot) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever_outlined, color: AppColors.dangerText, size: 24),
+            const SizedBox(width: 8),
+            Text('Confirm Delete Plot', style: AppTypography.cardTitle),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete Plot #${plot.plotNumber}?\n\n'
+          'The project cost allocation will automatically recalculate across all remaining plots.',
+          style: AppTypography.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete Plot', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final repo = ref.read(plotsRepositoryProvider);
+        await repo.deletePlot(plot.id, userId: 'admin_user');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Plot #${plot.plotNumber} deleted successfully!')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting plot: $e')),
+          );
+        }
+      }
+    }
+  }
 
   BadgeType _getBadgeType(PlotStatus status) {
     switch (status) {
@@ -42,14 +95,10 @@ class PlotsListScreen extends ConsumerWidget {
   String _formatSqFt(double sqFt, String unit) {
     if (sqFt <= 0) return '0 $unit';
     if (unit.toLowerCase().contains('katta') || unit.toLowerCase().contains('kattha')) {
-      final totalKatta = sqFt / LandUnitConverter.sqFtPerKatta;
-      final kd = LandUnitConverter.sqFtToKattaDhur(sqFt);
+      final totalKatta = LandUnitConverter.sqFtToKatta(sqFt);
       final kattaStr = totalKatta == totalKatta.roundToDouble()
           ? totalKatta.toInt().toString()
-          : double.parse(totalKatta.toStringAsFixed(2)).toString().replaceAll(RegExp(r'\.0+$'), '');
-      if (kd.dhur > 0 && totalKatta != totalKatta.roundToDouble()) {
-        return '$kattaStr Kattha (${kd.katta}K ${kd.dhur}D)';
-      }
+          : double.parse(totalKatta.toStringAsFixed(2)).toString().replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
       return '$kattaStr Kattha';
     }
     return LandUnitConverter.formatLandMeasurement(areaSqFt: sqFt, measurementUnit: unit);
@@ -74,7 +123,16 @@ class PlotsListScreen extends ConsumerWidget {
               'Subdivide parent land into plots, allocate project cost, and manage plot availability.',
           icon: Icons.grid_view_outlined,
           actions: [
-            if (currentRole.isAdmin)
+            if (currentRole.isAdmin) ...[
+              OutlinedButton.icon(
+                onPressed: () => RoadCreationDialog.show(
+                  context,
+                  preselectedProjectId: selectedProjectId,
+                ),
+                icon: const Icon(Icons.add_road, size: 18),
+                label: const Text('Add Road'),
+              ),
+              const SizedBox(width: 12),
               ElevatedButton.icon(
                 onPressed: () => PlotSubdivisionDialog.show(
                   context,
@@ -83,6 +141,7 @@ class PlotsListScreen extends ConsumerWidget {
                 icon: const Icon(Icons.add_location_alt_outlined, size: 18),
                 label: const Text('Subdivide Plot'),
               ),
+            ],
           ],
         ),
         const SizedBox(height: 16),
@@ -185,6 +244,8 @@ class PlotsListScreen extends ConsumerWidget {
 
               final allPlots = plotsAsync.value ?? [];
               final projectPlots = allPlots.where((p) => p.projectId == selectedProjectId).toList();
+              final sellablePlots = projectPlots.where((p) => !p.isRoad).toList();
+              final roadPlots = projectPlots.where((p) => p.isRoad).toList();
               final double totalLandSqFt = selectedProject.landAreaSqFt;
               final double plottedSqFt = projectPlots.fold(0.0, (sum, p) => sum + p.areaSqFt);
               final double remainingSqFt = (totalLandSqFt - plottedSqFt).clamp(0.0, double.infinity);
@@ -224,7 +285,7 @@ class PlotsListScreen extends ConsumerWidget {
                               ),
                               const SizedBox(width: 16),
                               Text(
-                                'Plotted Area: ${_formatSqFt(plottedSqFt, selectedProject.measurementUnit)} (${projectPlots.length} plots)',
+                                'Plotted Area: ${_formatSqFt(plottedSqFt, selectedProject.measurementUnit)} (${sellablePlots.length} plots${roadPlots.isNotEmpty ? " + ${roadPlots.length} road" : ""})',
                                 style: AppTypography.secondary.copyWith(fontSize: 12),
                               ),
                               const SizedBox(width: 16),
@@ -288,12 +349,12 @@ class PlotsListScreen extends ConsumerWidget {
 
               return CustomDataTable(
                 columns: const [
-                  DataTableColumn(label: 'Plot Number', width: 130),
+                  DataTableColumn(label: 'Plot Number', width: 140),
                   DataTableColumn(label: 'Plot Area', width: 130),
                   DataTableColumn(label: 'Allocated Cost', width: 180),
-                  DataTableColumn(label: 'Expected Price', width: 160),
-                  DataTableColumn(label: 'Status', width: 150),
-                  DataTableColumn(label: 'Actions', width: 120, alignment: Alignment.center),
+                  DataTableColumn(label: 'Expected Price', width: 150),
+                  DataTableColumn(label: 'Status', width: 130),
+                  DataTableColumn(label: 'Actions', width: 165, alignment: Alignment.center),
                 ],
                 rows: filtered.map((plot) {
                   return [
@@ -333,7 +394,7 @@ class PlotsListScreen extends ConsumerWidget {
                             const FormulaTermDefinition(
                               term: 'Total Project Area',
                               definition: 'Total area of all plots in this project.',
-                              valueDisplay: '2,27,000 sq.ft',
+                              valueDisplay: '2,27,00,000 sq.ft',
                             ),
                             const FormulaTermDefinition(
                               term: 'Actual Project Cost',
@@ -346,21 +407,52 @@ class PlotsListScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    Text(
-                      CalculationEngine.formatCurrency(plot.expectedPrice),
-                      style: AppTypography.amountMedium.copyWith(
-                        fontSize: 14,
-                        color: AppColors.successText,
-                      ),
-                    ),
-                    StatusBadge(
-                      label: plot.status.name.toUpperCase(),
-                      type: _getBadgeType(plot.status),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.info_outline, size: 18),
-                      tooltip: 'Plot Details',
-                      onPressed: () => PlotDetailsDialog.show(context, plot),
+                    plot.isRoad
+                        ? Text('—', style: AppTypography.secondary)
+                        : Text(
+                            CalculationEngine.formatCurrency(plot.expectedPrice),
+                            style: AppTypography.amountMedium.copyWith(
+                              fontSize: 14,
+                              color: AppColors.successText,
+                            ),
+                          ),
+                    plot.isRoad
+                        ? Text('—', style: AppTypography.body.copyWith(fontWeight: FontWeight.bold, color: AppColors.textSecondary))
+                        : StatusBadge(
+                            label: plot.status.name.toUpperCase(),
+                            type: _getBadgeType(plot.status),
+                          ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.add_card_outlined, size: 17, color: AppColors.accent),
+                          tooltip: 'Add Plot Expense',
+                          onPressed: () => ExpenseFormDialog.show(
+                            context,
+                            preselectedProjectId: plot.projectId,
+                            preselectedPlotNumber: plot.plotNumber,
+                          ),
+                        ),
+                        if (currentRole.isAdmin)
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 17, color: AppColors.accent),
+                            tooltip: 'Edit Plot',
+                            onPressed: () => PlotEditDialog.show(context, plot),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.info_outline, size: 17),
+                          tooltip: 'Plot Details',
+                          onPressed: () => PlotDetailsDialog.show(context, plot),
+                        ),
+                        if (currentRole.isAdmin)
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 17, color: AppColors.dangerText),
+                            tooltip: 'Delete Plot',
+                            onPressed: () => _handleDeletePlot(context, ref, plot),
+                          ),
+                      ],
                     ),
                   ];
                 }).toList(),

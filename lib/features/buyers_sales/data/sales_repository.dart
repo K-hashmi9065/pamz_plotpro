@@ -153,6 +153,17 @@ class SalesRepository {
           status: Value(PlotStatus.saleAgreement.name),
         ),
       );
+      await _db.into(_db.auditLogs).insert(
+        AuditLogsCompanion(
+          id: Value(_uuid.v4()),
+          userId: Value(userId),
+          action: const Value('LINK_PLOT_SALE'),
+          entityType: const Value('Plot'),
+          entityId: Value(plotId),
+          details: Value('SaleId:$id;BuyerId:$buyerId'),
+          timestamp: Value(DateTime.now()),
+        ),
+      );
     }
 
     // Auto-create Installments & Initial Down Payment Transaction if specified
@@ -210,6 +221,41 @@ class SalesRepository {
                 ),
               );
         }
+      }
+    }
+
+    // Auto-record direct sale expense / brokerage into expenses table (Capitalized)
+    if (saleExpenses > 0) {
+      final buyer = await (_db.select(_db.buyers)..where((tbl) => tbl.id.equals(buyerId))).getSingleOrNull();
+      final buyerName = buyer?.name ?? 'Customer';
+      final expId = _uuid.v4();
+      await _db.into(_db.expenses).insert(
+            ExpensesCompanion(
+              id: Value(expId),
+              projectId: Value(projectId),
+              category: Value(ExpenseCategory.brokerage.name),
+              amount: Value(saleExpenses),
+              expenseDate: Value(saleDate),
+              vendor: Value('Broker / Sale Agent ($buyerName)'),
+              isCapitalized: const Value(true),
+              notes: Value('Direct Sale Expense / Brokerage for Plot Sale Agreement ($id) - $buyerName'),
+              createdAt: Value(DateTime.now()),
+            ),
+          );
+
+      // Recalculate Project Actual Cost
+      final allExpenses = await (_db.select(_db.expenses)..where((tbl) => tbl.projectId.equals(projectId))).get();
+      final totalCapitalized = allExpenses
+          .where((e) => e.isCapitalized)
+          .fold(0.0, (sum, e) => sum + e.amount);
+      final project = await (_db.select(_db.projects)..where((tbl) => tbl.id.equals(projectId))).getSingleOrNull();
+      if (project != null) {
+        final dynamicActualCost = project.purchasePrice + totalCapitalized;
+        await (_db.update(_db.projects)..where((tbl) => tbl.id.equals(projectId))).write(
+          ProjectsCompanion(
+            actualCost: Value(dynamicActualCost),
+          ),
+        );
       }
     }
 
@@ -330,7 +376,36 @@ class SalesRepository {
       await (_db.delete(_db.installments)..where((tbl) => tbl.id.equals(inst.id))).go();
     }
 
+    // Reset linked plots status back to AVAILABLE
+    final linkLogs = await (_db.select(_db.auditLogs)
+      ..where((tbl) => tbl.action.equals('LINK_PLOT_SALE') & tbl.details.like('%SaleId:$saleId%'))).get();
+    for (final log in linkLogs) {
+      await (_db.update(_db.plots)..where((tbl) => tbl.id.equals(log.entityId))).write(
+        PlotsCompanion(
+          status: Value(PlotStatus.available.name),
+        ),
+      );
+    }
+
+    // Delete linked direct sale expenses from expenses table
+    await (_db.delete(_db.expenses)..where((tbl) => tbl.notes.like('%($saleId)%'))).go();
+
     await (_db.delete(_db.sales)..where((tbl) => tbl.id.equals(saleId))).go();
+
+    // Recalculate Project Actual Cost
+    final allExpenses = await (_db.select(_db.expenses)..where((tbl) => tbl.projectId.equals(sale.projectId))).get();
+    final totalCapitalized = allExpenses
+        .where((e) => e.isCapitalized)
+        .fold(0.0, (sum, e) => sum + e.amount);
+    final project = await (_db.select(_db.projects)..where((tbl) => tbl.id.equals(sale.projectId))).getSingleOrNull();
+    if (project != null) {
+      final dynamicActualCost = project.purchasePrice + totalCapitalized;
+      await (_db.update(_db.projects)..where((tbl) => tbl.id.equals(sale.projectId))).write(
+        ProjectsCompanion(
+          actualCost: Value(dynamicActualCost),
+        ),
+      );
+    }
 
     await _db.into(_db.auditLogs).insert(
           AuditLogsCompanion(

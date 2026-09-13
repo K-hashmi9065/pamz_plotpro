@@ -43,7 +43,7 @@ void main() {
       expect(pl.realizedProfit, equals(2000000.0)); // ₹20,00,000
     });
 
-    test('InvestorPayoutModel ROI % and Settlement balance', () {
+    test('InvestorPayoutModel ROR % and Settlement balance', () {
       final payout = InvestorPayoutModel(
         id: 'inv_alloc_1',
         investorId: 'inv_1',
@@ -56,7 +56,8 @@ void main() {
       );
 
       expect(payout.allocatedProfitShare, equals(1000000.0)); // 25% of 40L = 10L
-      expect(payout.roiPercent, equals(50.0)); // 10L / 20L * 100 = 50% ROI
+      expect(payout.rorPercent, equals(50.0)); // 10L / 20L * 100 = 50% ROR (Rate of Return)
+      expect(payout.roiPercent, equals(50.0)); // Backwards compatible alias
       expect(payout.remainingPayoutBalance, equals(2500000.0)); // 20L + 10L - 5L = 25L
     });
 
@@ -120,7 +121,7 @@ void main() {
       expect(logs.isNotEmpty, isTrue);
 
       final payoutLog = logs.firstWhere((l) => l.action == 'DISBURSE_INVESTOR_PAYOUT');
-      expect(payoutLog.details, contains('Disbursed profit payout of ₹250000.0 to investor'));
+      expect(payoutLog.details, contains('Disbursed profit payout of ₹250000 to investor'));
       expect(payoutLog.details, contains('UTR-99887766'));
     });
   });

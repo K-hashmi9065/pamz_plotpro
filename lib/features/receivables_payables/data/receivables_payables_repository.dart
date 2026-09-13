@@ -14,24 +14,25 @@ class ReceivablesPayablesRepository {
       final now = DateTime.now();
 
       for (final inst in installments) {
+        // Customer receivables are only from customer plot/land sales
+        if (inst.saleId == null || inst.saleId!.isEmpty) continue;
+
         final outstanding = inst.dueAmount - inst.paidAmount;
         if (outstanding <= 0) continue; // Only unpaid / partially paid
 
-        String buyerName = 'Unknown Buyer';
+        String buyerName = 'Customer';
         String projectId = 'UNKNOWN_PROJECT';
 
-        if (inst.saleId != null) {
-          final sale = await (_db.select(_db.sales)
-                ..where((tbl) => tbl.id.equals(inst.saleId!)))
-              .getSingleOrNull();
+        final sale = await (_db.select(_db.sales)
+              ..where((tbl) => tbl.id.equals(inst.saleId!)))
+            .getSingleOrNull();
 
-          if (sale != null) {
-            projectId = sale.projectId;
-            final buyer = await (_db.select(_db.buyers)
-                  ..where((tbl) => tbl.id.equals(sale.buyerId)))
-                .getSingleOrNull();
-            if (buyer != null) buyerName = buyer.name;
-          }
+        if (sale != null) {
+          projectId = sale.projectId;
+          final buyer = await (_db.select(_db.buyers)
+                ..where((tbl) => tbl.id.equals(sale.buyerId)))
+              .getSingleOrNull();
+          if (buyer != null) buyerName = buyer.name;
         }
 
         final diffDays = now.difference(inst.dueDate).inDays;

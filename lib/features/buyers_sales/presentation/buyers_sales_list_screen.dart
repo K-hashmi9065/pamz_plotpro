@@ -22,6 +22,7 @@ import 'widgets/sale_agreement_dialog.dart';
 
 final buyersSalesSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 final buyersSalesDateRangeFilterProvider = StateProvider.autoDispose<DashboardDateRange>((ref) => DashboardDateRange.allTime);
+final buyersSalesSelectedProjectIdProvider = StateProvider.autoDispose<String?>((ref) => null);
 
 class _BuyerSaleRowItem {
   final BuyerModel buyer;
@@ -33,27 +34,78 @@ class _BuyerSaleRowItem {
 class BuyersSalesListScreen extends ConsumerWidget {
   const BuyersSalesListScreen({super.key});
 
+  Future<void> _handleDeleteBuyer(BuildContext context, WidgetRef ref, BuyerModel buyer) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever_outlined, color: AppColors.dangerText, size: 24),
+            const SizedBox(width: 8),
+            Text('Confirm Delete Buyer', style: AppTypography.cardTitle),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete buyer "${buyer.name}" (${buyer.phone})?\n\n'
+          'WARNING: This will delete the buyer profile and any sales/installments associated with this buyer.',
+          style: AppTypography.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.dangerText),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete Buyer', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final repo = ref.read(salesRepositoryProvider);
+        await repo.deleteBuyer(buyer.id, userId: 'admin_user');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Buyer "${buyer.name}" deleted successfully!')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting buyer: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final searchQuery = ref.watch(buyersSalesSearchQueryProvider);
     final dateRangeFilter = ref.watch(buyersSalesDateRangeFilterProvider);
+    final selectedProjectId = ref.watch(buyersSalesSelectedProjectIdProvider);
 
     final buyersAsync = ref.watch(buyersListStreamProvider);
     final salesAsync = ref.watch(salesListStreamProvider);
+    final projectsAsync = ref.watch(projectsListStreamProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PageHeader(
-          title: 'Buyers & Sales Agreements',
+          title: 'Customers & Sales Agreements',
           subtitle:
-              'Manage buyer KYC profiles, execute whole-land or plot sales, and enforce DLC/Circle rate compliance.',
-          icon: Icons.sell_outlined,
+              'Manage customer KYC profiles, execute whole-land or plot sales, and enforce DLC/Circle rate compliance.',
+          icon: Icons.people_outline,
           actions: [
             OutlinedButton.icon(
               onPressed: () => BuyerFormDialog.show(context),
               icon: const Icon(Icons.person_add_outlined, size: 18),
-              label: const Text('Add Buyer'),
+              label: const Text('Add Customer'),
             ),
             const SizedBox(width: 12),
             ElevatedButton.icon(
@@ -65,23 +117,55 @@ class BuyersSalesListScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
 
-        // Filter Bar
+        // Filter Bar (Search, Project, Date Range)
         Row(
           children: [
             SizedBox(
-              width: 320,
+              width: 280,
               height: 38,
               child: TextField(
                 onChanged: (val) => ref.read(buyersSalesSearchQueryProvider.notifier).state = val,
                 decoration: const InputDecoration(
-                  hintText: 'Search buyer name, phone, sale type...',
+                  hintText: 'Search customer name, phone, sale type...',
                   prefixIcon: Icon(Icons.search, size: 18),
                   contentPadding: EdgeInsets.symmetric(vertical: 8),
                 ),
                 style: AppTypography.input.copyWith(fontSize: 13),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
+            projectsAsync.when(
+              data: (projects) => Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: selectedProjectId,
+                    hint: Text('All Projects', style: AppTypography.secondary),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All Projects'),
+                      ),
+                      ...projects.map((p) => DropdownMenuItem(
+                            value: p.id,
+                            child: Text('${p.name} (${p.code})'),
+                          )),
+                    ],
+                    onChanged: (val) => ref.read(buyersSalesSelectedProjectIdProvider.notifier).state = val,
+                    style: AppTypography.body.copyWith(fontSize: 13),
+                  ),
+                ),
+              ),
+              loading: () => const SizedBox.shrink(),
+              error: (e, s) => const SizedBox.shrink(),
+            ),
+            const SizedBox(width: 12),
             Container(
               height: 38,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -169,6 +253,9 @@ class BuyersSalesListScreen extends ConsumerWidget {
                   }
 
                   final filtered = allItems.where((item) {
+                    if (selectedProjectId != null && item.sale?.projectId != selectedProjectId) {
+                      return false;
+                    }
                     final dateToCheck = item.sale?.saleDate ?? item.buyer.createdAt;
                     if (!isDateInFilterRange(dateToCheck, dateRangeFilter)) {
                       return false;
@@ -183,13 +270,13 @@ class BuyersSalesListScreen extends ConsumerWidget {
 
                   return CustomDataTable(
                     columns: const [
-                      DataTableColumn(label: 'Buyer Name'),
+                      DataTableColumn(label: 'Customer Name'),
                       DataTableColumn(label: 'Sale Type', width: 150),
                       DataTableColumn(label: 'Agreed Price', width: 150),
                       DataTableColumn(label: 'Net Sale Proceeds', width: 180),
                       DataTableColumn(label: 'Sale Date', width: 130),
                       DataTableColumn(label: 'Compliance Status', width: 170),
-                      DataTableColumn(label: 'Actions', width: 120, alignment: Alignment.center),
+                      DataTableColumn(label: 'Actions', width: 145, alignment: Alignment.center),
                     ],
                     rows: filtered.map((item) {
                       final buyer = item.buyer;
@@ -231,6 +318,11 @@ class BuyersSalesListScreen extends ConsumerWidget {
                                   context,
                                   buyer: buyer,
                                 ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: AppColors.dangerText, size: 18),
+                                tooltip: 'Delete Buyer',
+                                onPressed: () => _handleDeleteBuyer(context, ref, buyer),
                               ),
                             ],
                           ),
@@ -326,6 +418,11 @@ class BuyersSalesListScreen extends ConsumerWidget {
                                 context,
                                 buyer: buyer,
                               ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: AppColors.dangerText, size: 18),
+                              tooltip: 'Delete Buyer Profile',
+                              onPressed: () => _handleDeleteBuyer(context, ref, buyer),
                             ),
                           ],
                         ),
