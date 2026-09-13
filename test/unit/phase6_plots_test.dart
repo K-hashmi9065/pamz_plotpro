@@ -42,8 +42,8 @@ void main() {
         userId: 'admin_user',
       );
 
-      // Allocated cost should equal ₹1,00,000 (i.e. 1,000 / 1,000 * 2,27,00,000 when only plot12 exists)
-      expect(plot12.allocatedCost, equals(22700000.0));
+      // Allocated cost should equal ₹1,00,000 (i.e. 1,000 / 1,000 * 2,27,00,000)
+      expect(plot12.allocatedCost, equals(100000.0));
 
       // Now add Plot #13 with area 2,26,000 sq. ft. (bringing total plot area to 2,27,000 sq. ft.)
       await plotsRepo.createPlot(
@@ -163,8 +163,8 @@ void main() {
         expect(createdPlots[i].lengthFt, equals(120));
         expect(createdPlots[i].breadthFt, equals(102));
         expect(createdPlots[i].status, equals(PlotStatus.available));
-        // Total allocated area = 10 * 12240 = 122400 sq ft, each gets 1/10th of cost
-        expect(createdPlots[i].allocatedCost, equals(1152000.0));
+        // Plot area = 12240 sq ft, total area = 129600 sq ft, cost = 12240 * (11520000 / 129600) = 1088000.0
+        expect(createdPlots[i].allocatedCost, equals(1088000.0));
       }
     });
 

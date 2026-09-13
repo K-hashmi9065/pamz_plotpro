@@ -79,6 +79,7 @@ class GlobalSearchDialog extends ConsumerStatefulWidget {
 class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
   late final TextEditingController _searchController;
   final FocusNode _focusNode = FocusNode();
+  final FocusNode _dialogKeyboardFocusNode = FocusNode();
   String _query = '';
   final _currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -96,6 +97,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
   void dispose() {
     _searchController.dispose();
     _focusNode.dispose();
+    _dialogKeyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -305,7 +307,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       child: KeyboardListener(
-        focusNode: FocusNode(),
+        focusNode: _dialogKeyboardFocusNode,
         onKeyEvent: (event) {
           if (event.logicalKey == LogicalKeyboardKey.escape) {
             Navigator.of(context).pop();
