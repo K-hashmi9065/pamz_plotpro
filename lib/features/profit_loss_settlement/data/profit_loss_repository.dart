@@ -169,5 +169,19 @@ class ProfitLossRepository {
             timestamp: Value(DateTime.now()),
           ),
         );
+
+    // Also record formal distribution in distributions table
+    await _db.into(_db.distributions).insert(
+          DistributionsCompanion(
+            id: Value(_uuid.v4()),
+            projectId: Value(alloc.projectId),
+            investorId: Value(alloc.investorId),
+            amount: Value(payoutAmount),
+            distributionDate: Value(DateTime.now()),
+            notes: Value('Ref: ${paymentReference.trim()} (ProjectInvestor: $projectInvestorId)'),
+            createdBy: Value(userId),
+            createdAt: Value(DateTime.now()),
+          ),
+        );
   }
 }

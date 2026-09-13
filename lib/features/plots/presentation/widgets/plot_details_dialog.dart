@@ -11,6 +11,7 @@ import '../../../../shared/widgets/page/status_badge.dart';
 import '../../../audit_log/presentation/audit_log_screen.dart';
 import '../../../buyers_sales/domain/sale_model.dart';
 import '../../../buyers_sales/presentation/sales_providers.dart';
+import '../../../buyers_sales/presentation/widgets/customer_invoice_pdf_dialog.dart';
 import '../../../buyers_sales/presentation/widgets/sale_agreement_dialog.dart';
 import '../../../expenses/presentation/expenses_providers.dart';
 import '../../../expenses/presentation/widgets/expense_form_dialog.dart';
@@ -769,64 +770,109 @@ class PlotDetailsDialog extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          if (isFullyPaid)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: AppColors.success.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.check_circle, size: 14, color: AppColors.successText),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'All Agreement Payments Paid',
-                                    style: AppTypography.secondary.copyWith(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.successText,
-                                    ),
+                          Row(
+                            children: [
+                              if (isPlotSoldOrBooked && matchedSale != null) ...[
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    minimumSize: const Size(0, 28),
                                   ),
-                                ],
-                              ),
-                            )
-                          else if (isPlotSoldOrBooked)
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.success,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                minimumSize: const Size(0, 28),
-                              ),
-                              icon: const Icon(Icons.add, size: 13),
-                              label: const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                              onPressed: () {
-                                final unpaidInst = relevantInstallments.where((i) => !i.isFullyPaid).firstOrNull;
-                                PaymentRecordDialog.show(
-                                  context,
-                                  installment: unpaidInst,
-                                  projectId: plot.projectId,
-                                );
-                              },
-                            )
-                          else if (!plot.isRoad)
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                minimumSize: const Size(0, 28),
-                              ),
-                              icon: const Icon(Icons.assignment_outlined, size: 13),
-                              label: const Text('Create Sale Agreement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                              onPressed: () {
-                                SaleAgreementDialog.show(
-                                  context,
-                                  preselectedProjectId: plot.projectId,
-                                );
-                              },
-                            ),
+                                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 13, color: AppColors.accent),
+                                  label: const Text('Share Invoice PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                                  onPressed: () async {
+                                    final projects = ref.read(projectsListStreamProvider).value ?? [];
+                                    final proj = projects.where((p) => p.id == plot.projectId).firstOrNull;
+                                    final buyers = ref.read(buyersListStreamProvider).value ?? [];
+                                    final buyer = buyers.where((b) => b.id == matchedSale!.buyerId).firstOrNull;
+                                    final db = ref.read(appDatabaseProvider);
+                                    final saleInsts = await (db.select(db.installments)..where((i) => i.saleId.equals(matchedSale!.id))).get();
+                                    final instIds = saleInsts.map((i) => i.id).toSet();
+                                    final allTxs = await db.select(db.transactions).get();
+                                    final txs = allTxs
+                                        .where((t) =>
+                                            !t.isVoided &&
+                                            t.installmentId != null &&
+                                            instIds.contains(t.installmentId))
+                                        .toList();
+                                    txs.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+
+                                    if (context.mounted) {
+                                      CustomerInvoicePdfDialog.show(
+                                        context,
+                                        sale: matchedSale!,
+                                        buyer: buyer,
+                                        projectName: proj?.name ?? 'Project',
+                                        projectCode: proj?.code ?? 'PRJ',
+                                        projectLocation: proj?.location ?? '',
+                                        plots: [plot],
+                                        transactions: txs,
+                                      );
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              if (isFullyPaid)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.check_circle, size: 14, color: AppColors.successText),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'All Agreement Payments Paid',
+                                        style: AppTypography.secondary.copyWith(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.successText,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else if (isPlotSoldOrBooked)
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.success,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    minimumSize: const Size(0, 28),
+                                  ),
+                                  icon: const Icon(Icons.add, size: 13),
+                                  label: const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                                  onPressed: () {
+                                    final unpaidInst = relevantInstallments.where((i) => !i.isFullyPaid).firstOrNull;
+                                    PaymentRecordDialog.show(
+                                      context,
+                                      installment: unpaidInst,
+                                      projectId: plot.projectId,
+                                    );
+                                  },
+                                )
+                              else if (!plot.isRoad)
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    minimumSize: const Size(0, 28),
+                                  ),
+                                  icon: const Icon(Icons.assignment_outlined, size: 13),
+                                  label: const Text('Create Sale Agreement', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                                  onPressed: () {
+                                    SaleAgreementDialog.show(
+                                      context,
+                                      preselectedProjectId: plot.projectId,
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ),

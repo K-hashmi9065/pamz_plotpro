@@ -20,22 +20,28 @@ abstract class AppConstants {
 
 /// User Roles in the System (Exactly two)
 enum UserRole {
-  admin,
-  member,
-}
+  admin('Admin'),
+  member('Member');
 
-extension UserRoleX on UserRole {
-  String get displayName {
-    switch (this) {
-      case UserRole.admin:
-        return 'Admin';
-      case UserRole.member:
-        return 'Member';
-    }
-  }
+  final String displayName;
+  const UserRole(this.displayName);
 
   bool get isAdmin => this == UserRole.admin;
   bool get isMember => this == UserRole.member;
+}
+
+/// Backward compatibility extension
+extension UserRoleX on UserRole {
+  static UserRole fromDb(String value) {
+    switch (value) {
+      case 'admin':
+        return UserRole.admin;
+      case 'member':
+        return UserRole.member;
+      default:
+        return UserRole.member;
+    }
+  }
 }
 
 /// Project Status Lifecycle

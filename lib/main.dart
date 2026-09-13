@@ -6,18 +6,23 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/constants/app_constants.dart';
 import 'core/routing/app_router.dart';
+import 'core/storage/hive_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize local session storage before app starts
+  await HiveService.init();
+
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     await windowManager.ensureInitialized();
 
     const windowOptions = WindowOptions(
       size: Size(AppConstants.designWidth, AppConstants.designHeight),
-      minimumSize: Size(AppConstants.minWindowWidth, AppConstants.minWindowHeight),
+      minimumSize:
+          Size(AppConstants.minWindowWidth, AppConstants.minWindowHeight),
       center: true,
       backgroundColor: AppColors.primary,
       skipTaskbar: false,

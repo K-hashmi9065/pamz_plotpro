@@ -11,6 +11,8 @@ import '../installments_providers.dart';
 import '../../../projects/presentation/projects_providers.dart';
 import '../../../buyers_sales/presentation/sales_providers.dart';
 import '../../../buyers_sales/domain/sale_model.dart';
+import '../../../buyers_sales/presentation/widgets/customer_invoice_pdf_dialog.dart';
+import '../../../plots/presentation/plots_providers.dart';
 import '../../../../shared/widgets/searchable_project_dropdown.dart';
 
 class PaymentRecordDialog extends ConsumerStatefulWidget {
@@ -124,10 +126,50 @@ class _PaymentRecordDialogState extends ConsumerState<PaymentRecordDialog> {
       if (mounted) {
         final messenger = ScaffoldMessenger.of(context);
         final navigator = Navigator.of(context);
+        final saleId = _selectedSaleIdNotifier.value ?? _selectedInstallmentNotifier.value?.saleId;
+        
         navigator.pop();
         messenger.showSnackBar(
-          const SnackBar(content: Text('Payment recorded successfully!')),
+          const SnackBar(content: Text('Payment recorded successfully! Opening Invoice PDF...')),
         );
+
+        if (saleId != null) {
+          final sales = ref.read(salesListStreamProvider).value ?? [];
+          final sale = sales.where((s) => s.id == saleId).firstOrNull;
+          if (sale != null) {
+            final projects = ref.read(projectsListStreamProvider).value ?? [];
+            final proj = projects.where((p) => p.id == sale.projectId).firstOrNull;
+            final buyers = ref.read(buyersListStreamProvider).value ?? [];
+            final buyer = buyers.where((b) => b.id == sale.buyerId).firstOrNull;
+            final db = ref.read(appDatabaseProvider);
+            final saleInsts = await (db.select(db.installments)..where((i) => i.saleId.equals(sale.id))).get();
+            final instIds = saleInsts.map((i) => i.id).toSet();
+            final allTxs = await db.select(db.transactions).get();
+            final txs = allTxs
+                .where((t) =>
+                    !t.isVoided &&
+                    t.installmentId != null &&
+                    instIds.contains(t.installmentId))
+                .toList();
+            txs.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+
+            final plots = ref.read(plotsListStreamProvider).value ?? [];
+            final salePlots = plots.where((p) => p.projectId == sale.projectId).toList();
+
+            if (mounted) {
+              CustomerInvoicePdfDialog.show(
+                context,
+                sale: sale,
+                buyer: buyer,
+                projectName: proj?.name ?? 'Project',
+                projectCode: proj?.code ?? 'PRJ',
+                projectLocation: proj?.location ?? '',
+                plots: salePlots,
+                transactions: txs,
+              );
+            }
+          }
+        }
       }
     } catch (e) {
       _errorMessageNotifier.value = e.toString().replaceAll('ArgumentError: ', '');

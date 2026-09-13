@@ -17,6 +17,28 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _mobileNoMeta = const VerificationMeta(
+    'mobileNo',
+  );
+  @override
+  late final GeneratedColumn<String> mobileNo = GeneratedColumn<String>(
+    'mobile_no',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _usernameMeta = const VerificationMeta(
     'username',
   );
@@ -26,8 +48,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _emailMeta = const VerificationMeta('email');
   @override
@@ -36,7 +58,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _passwordHashMeta = const VerificationMeta(
     'passwordHash',
@@ -49,6 +72,16 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _saltMeta = const VerificationMeta('salt');
+  @override
+  late final GeneratedColumn<String> salt = GeneratedColumn<String>(
+    'salt',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _roleMeta = const VerificationMeta('role');
   @override
   late final GeneratedColumn<String> role = GeneratedColumn<String>(
@@ -57,6 +90,28 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _memberTypeMeta = const VerificationMeta(
+    'memberType',
+  );
+  @override
+  late final GeneratedColumn<String> memberType = GeneratedColumn<String>(
+    'member_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _linkedEntityIdMeta = const VerificationMeta(
+    'linkedEntityId',
+  );
+  @override
+  late final GeneratedColumn<String> linkedEntityId = GeneratedColumn<String>(
+    'linked_entity_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
@@ -88,10 +143,15 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    name,
+    mobileNo,
     username,
     email,
     passwordHash,
+    salt,
     role,
+    memberType,
+    linkedEntityId,
     isActive,
     createdAt,
   ];
@@ -112,21 +172,29 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     } else if (isInserting) {
       context.missing(_idMeta);
     }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('mobile_no')) {
+      context.handle(
+        _mobileNoMeta,
+        mobileNo.isAcceptableOrUnknown(data['mobile_no']!, _mobileNoMeta),
+      );
+    }
     if (data.containsKey('username')) {
       context.handle(
         _usernameMeta,
         username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
       );
-    } else if (isInserting) {
-      context.missing(_usernameMeta);
     }
     if (data.containsKey('email')) {
       context.handle(
         _emailMeta,
         email.isAcceptableOrUnknown(data['email']!, _emailMeta),
       );
-    } else if (isInserting) {
-      context.missing(_emailMeta);
     }
     if (data.containsKey('password_hash')) {
       context.handle(
@@ -139,6 +207,12 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     } else if (isInserting) {
       context.missing(_passwordHashMeta);
     }
+    if (data.containsKey('salt')) {
+      context.handle(
+        _saltMeta,
+        salt.isAcceptableOrUnknown(data['salt']!, _saltMeta),
+      );
+    }
     if (data.containsKey('role')) {
       context.handle(
         _roleMeta,
@@ -146,6 +220,21 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       );
     } else if (isInserting) {
       context.missing(_roleMeta);
+    }
+    if (data.containsKey('member_type')) {
+      context.handle(
+        _memberTypeMeta,
+        memberType.isAcceptableOrUnknown(data['member_type']!, _memberTypeMeta),
+      );
+    }
+    if (data.containsKey('linked_entity_id')) {
+      context.handle(
+        _linkedEntityIdMeta,
+        linkedEntityId.isAcceptableOrUnknown(
+          data['linked_entity_id']!,
+          _linkedEntityIdMeta,
+        ),
+      );
     }
     if (data.containsKey('is_active')) {
       context.handle(
@@ -172,6 +261,14 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      mobileNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mobile_no'],
+      )!,
       username: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}username'],
@@ -184,10 +281,22 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         DriftSqlType.string,
         data['${effectivePrefix}password_hash'],
       )!,
+      salt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}salt'],
+      )!,
       role: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}role'],
       )!,
+      memberType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}member_type'],
+      ),
+      linkedEntityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_entity_id'],
+      ),
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -207,18 +316,40 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
 
 class User extends DataClass implements Insertable<User> {
   final String id;
+
+  /// Display name of the user.
+  final String name;
+
+  /// Mobile number used as login identifier.
+  final String mobileNo;
+
+  /// Legacy field kept for compatibility; mirrors mobileNo for new accounts.
   final String username;
   final String email;
   final String passwordHash;
+
+  /// Per-user random salt (hex string) for SHA-256 password hashing.
+  final String salt;
   final String role;
+
+  /// Sub-type for member role: 'customerBuyer' | 'investor' | 'landowner'. Null for admin.
+  final String? memberType;
+
+  /// FK to Buyers/Investors/Landowners table depending on memberType.
+  final String? linkedEntityId;
   final bool isActive;
   final DateTime createdAt;
   const User({
     required this.id,
+    required this.name,
+    required this.mobileNo,
     required this.username,
     required this.email,
     required this.passwordHash,
+    required this.salt,
     required this.role,
+    this.memberType,
+    this.linkedEntityId,
     required this.isActive,
     required this.createdAt,
   });
@@ -226,10 +357,19 @@ class User extends DataClass implements Insertable<User> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['mobile_no'] = Variable<String>(mobileNo);
     map['username'] = Variable<String>(username);
     map['email'] = Variable<String>(email);
     map['password_hash'] = Variable<String>(passwordHash);
+    map['salt'] = Variable<String>(salt);
     map['role'] = Variable<String>(role);
+    if (!nullToAbsent || memberType != null) {
+      map['member_type'] = Variable<String>(memberType);
+    }
+    if (!nullToAbsent || linkedEntityId != null) {
+      map['linked_entity_id'] = Variable<String>(linkedEntityId);
+    }
     map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -238,10 +378,19 @@ class User extends DataClass implements Insertable<User> {
   UsersCompanion toCompanion(bool nullToAbsent) {
     return UsersCompanion(
       id: Value(id),
+      name: Value(name),
+      mobileNo: Value(mobileNo),
       username: Value(username),
       email: Value(email),
       passwordHash: Value(passwordHash),
+      salt: Value(salt),
       role: Value(role),
+      memberType: memberType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(memberType),
+      linkedEntityId: linkedEntityId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkedEntityId),
       isActive: Value(isActive),
       createdAt: Value(createdAt),
     );
@@ -254,10 +403,15 @@ class User extends DataClass implements Insertable<User> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return User(
       id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      mobileNo: serializer.fromJson<String>(json['mobileNo']),
       username: serializer.fromJson<String>(json['username']),
       email: serializer.fromJson<String>(json['email']),
       passwordHash: serializer.fromJson<String>(json['passwordHash']),
+      salt: serializer.fromJson<String>(json['salt']),
       role: serializer.fromJson<String>(json['role']),
+      memberType: serializer.fromJson<String?>(json['memberType']),
+      linkedEntityId: serializer.fromJson<String?>(json['linkedEntityId']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -267,10 +421,15 @@ class User extends DataClass implements Insertable<User> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'mobileNo': serializer.toJson<String>(mobileNo),
       'username': serializer.toJson<String>(username),
       'email': serializer.toJson<String>(email),
       'passwordHash': serializer.toJson<String>(passwordHash),
+      'salt': serializer.toJson<String>(salt),
       'role': serializer.toJson<String>(role),
+      'memberType': serializer.toJson<String?>(memberType),
+      'linkedEntityId': serializer.toJson<String?>(linkedEntityId),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -278,30 +437,51 @@ class User extends DataClass implements Insertable<User> {
 
   User copyWith({
     String? id,
+    String? name,
+    String? mobileNo,
     String? username,
     String? email,
     String? passwordHash,
+    String? salt,
     String? role,
+    Value<String?> memberType = const Value.absent(),
+    Value<String?> linkedEntityId = const Value.absent(),
     bool? isActive,
     DateTime? createdAt,
   }) => User(
     id: id ?? this.id,
+    name: name ?? this.name,
+    mobileNo: mobileNo ?? this.mobileNo,
     username: username ?? this.username,
     email: email ?? this.email,
     passwordHash: passwordHash ?? this.passwordHash,
+    salt: salt ?? this.salt,
     role: role ?? this.role,
+    memberType: memberType.present ? memberType.value : this.memberType,
+    linkedEntityId: linkedEntityId.present
+        ? linkedEntityId.value
+        : this.linkedEntityId,
     isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
   );
   User copyWithCompanion(UsersCompanion data) {
     return User(
       id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      mobileNo: data.mobileNo.present ? data.mobileNo.value : this.mobileNo,
       username: data.username.present ? data.username.value : this.username,
       email: data.email.present ? data.email.value : this.email,
       passwordHash: data.passwordHash.present
           ? data.passwordHash.value
           : this.passwordHash,
+      salt: data.salt.present ? data.salt.value : this.salt,
       role: data.role.present ? data.role.value : this.role,
+      memberType: data.memberType.present
+          ? data.memberType.value
+          : this.memberType,
+      linkedEntityId: data.linkedEntityId.present
+          ? data.linkedEntityId.value
+          : this.linkedEntityId,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -311,10 +491,15 @@ class User extends DataClass implements Insertable<User> {
   String toString() {
     return (StringBuffer('User(')
           ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('mobileNo: $mobileNo, ')
           ..write('username: $username, ')
           ..write('email: $email, ')
           ..write('passwordHash: $passwordHash, ')
+          ..write('salt: $salt, ')
           ..write('role: $role, ')
+          ..write('memberType: $memberType, ')
+          ..write('linkedEntityId: $linkedEntityId, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -322,70 +507,110 @@ class User extends DataClass implements Insertable<User> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, username, email, passwordHash, role, isActive, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    mobileNo,
+    username,
+    email,
+    passwordHash,
+    salt,
+    role,
+    memberType,
+    linkedEntityId,
+    isActive,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is User &&
           other.id == this.id &&
+          other.name == this.name &&
+          other.mobileNo == this.mobileNo &&
           other.username == this.username &&
           other.email == this.email &&
           other.passwordHash == this.passwordHash &&
+          other.salt == this.salt &&
           other.role == this.role &&
+          other.memberType == this.memberType &&
+          other.linkedEntityId == this.linkedEntityId &&
           other.isActive == this.isActive &&
           other.createdAt == this.createdAt);
 }
 
 class UsersCompanion extends UpdateCompanion<User> {
   final Value<String> id;
+  final Value<String> name;
+  final Value<String> mobileNo;
   final Value<String> username;
   final Value<String> email;
   final Value<String> passwordHash;
+  final Value<String> salt;
   final Value<String> role;
+  final Value<String?> memberType;
+  final Value<String?> linkedEntityId;
   final Value<bool> isActive;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const UsersCompanion({
     this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.mobileNo = const Value.absent(),
     this.username = const Value.absent(),
     this.email = const Value.absent(),
     this.passwordHash = const Value.absent(),
+    this.salt = const Value.absent(),
     this.role = const Value.absent(),
+    this.memberType = const Value.absent(),
+    this.linkedEntityId = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   UsersCompanion.insert({
     required String id,
-    required String username,
-    required String email,
+    this.name = const Value.absent(),
+    this.mobileNo = const Value.absent(),
+    this.username = const Value.absent(),
+    this.email = const Value.absent(),
     required String passwordHash,
+    this.salt = const Value.absent(),
     required String role,
+    this.memberType = const Value.absent(),
+    this.linkedEntityId = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       username = Value(username),
-       email = Value(email),
        passwordHash = Value(passwordHash),
        role = Value(role);
   static Insertable<User> custom({
     Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? mobileNo,
     Expression<String>? username,
     Expression<String>? email,
     Expression<String>? passwordHash,
+    Expression<String>? salt,
     Expression<String>? role,
+    Expression<String>? memberType,
+    Expression<String>? linkedEntityId,
     Expression<bool>? isActive,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (mobileNo != null) 'mobile_no': mobileNo,
       if (username != null) 'username': username,
       if (email != null) 'email': email,
       if (passwordHash != null) 'password_hash': passwordHash,
+      if (salt != null) 'salt': salt,
       if (role != null) 'role': role,
+      if (memberType != null) 'member_type': memberType,
+      if (linkedEntityId != null) 'linked_entity_id': linkedEntityId,
       if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -394,20 +619,30 @@ class UsersCompanion extends UpdateCompanion<User> {
 
   UsersCompanion copyWith({
     Value<String>? id,
+    Value<String>? name,
+    Value<String>? mobileNo,
     Value<String>? username,
     Value<String>? email,
     Value<String>? passwordHash,
+    Value<String>? salt,
     Value<String>? role,
+    Value<String?>? memberType,
+    Value<String?>? linkedEntityId,
     Value<bool>? isActive,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
     return UsersCompanion(
       id: id ?? this.id,
+      name: name ?? this.name,
+      mobileNo: mobileNo ?? this.mobileNo,
       username: username ?? this.username,
       email: email ?? this.email,
       passwordHash: passwordHash ?? this.passwordHash,
+      salt: salt ?? this.salt,
       role: role ?? this.role,
+      memberType: memberType ?? this.memberType,
+      linkedEntityId: linkedEntityId ?? this.linkedEntityId,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -420,6 +655,12 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (mobileNo.present) {
+      map['mobile_no'] = Variable<String>(mobileNo.value);
+    }
     if (username.present) {
       map['username'] = Variable<String>(username.value);
     }
@@ -429,8 +670,17 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (passwordHash.present) {
       map['password_hash'] = Variable<String>(passwordHash.value);
     }
+    if (salt.present) {
+      map['salt'] = Variable<String>(salt.value);
+    }
     if (role.present) {
       map['role'] = Variable<String>(role.value);
+    }
+    if (memberType.present) {
+      map['member_type'] = Variable<String>(memberType.value);
+    }
+    if (linkedEntityId.present) {
+      map['linked_entity_id'] = Variable<String>(linkedEntityId.value);
     }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
@@ -448,10 +698,15 @@ class UsersCompanion extends UpdateCompanion<User> {
   String toString() {
     return (StringBuffer('UsersCompanion(')
           ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('mobileNo: $mobileNo, ')
           ..write('username: $username, ')
           ..write('email: $email, ')
           ..write('passwordHash: $passwordHash, ')
+          ..write('salt: $salt, ')
           ..write('role: $role, ')
+          ..write('memberType: $memberType, ')
+          ..write('linkedEntityId: $linkedEntityId, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -8239,10 +8494,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$UsersTableCreateCompanionBuilder =
     UsersCompanion Function({
       required String id,
-      required String username,
-      required String email,
+      Value<String> name,
+      Value<String> mobileNo,
+      Value<String> username,
+      Value<String> email,
       required String passwordHash,
+      Value<String> salt,
       required String role,
+      Value<String?> memberType,
+      Value<String?> linkedEntityId,
       Value<bool> isActive,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -8250,10 +8510,15 @@ typedef $$UsersTableCreateCompanionBuilder =
 typedef $$UsersTableUpdateCompanionBuilder =
     UsersCompanion Function({
       Value<String> id,
+      Value<String> name,
+      Value<String> mobileNo,
       Value<String> username,
       Value<String> email,
       Value<String> passwordHash,
+      Value<String> salt,
       Value<String> role,
+      Value<String?> memberType,
+      Value<String?> linkedEntityId,
       Value<bool> isActive,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -8272,6 +8537,16 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mobileNo => $composableBuilder(
+    column: $table.mobileNo,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get username => $composableBuilder(
     column: $table.username,
     builder: (column) => ColumnFilters(column),
@@ -8287,8 +8562,23 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get salt => $composableBuilder(
+    column: $table.salt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get role => $composableBuilder(
     column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get memberType => $composableBuilder(
+    column: $table.memberType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedEntityId => $composableBuilder(
+    column: $table.linkedEntityId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8317,6 +8607,16 @@ class $$UsersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mobileNo => $composableBuilder(
+    column: $table.mobileNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get username => $composableBuilder(
     column: $table.username,
     builder: (column) => ColumnOrderings(column),
@@ -8332,8 +8632,23 @@ class $$UsersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get salt => $composableBuilder(
+    column: $table.salt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get role => $composableBuilder(
     column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get memberType => $composableBuilder(
+    column: $table.memberType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get linkedEntityId => $composableBuilder(
+    column: $table.linkedEntityId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8360,6 +8675,12 @@ class $$UsersTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get mobileNo =>
+      $composableBuilder(column: $table.mobileNo, builder: (column) => column);
+
   GeneratedColumn<String> get username =>
       $composableBuilder(column: $table.username, builder: (column) => column);
 
@@ -8371,8 +8692,21 @@ class $$UsersTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get salt =>
+      $composableBuilder(column: $table.salt, builder: (column) => column);
+
   GeneratedColumn<String> get role =>
       $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get memberType => $composableBuilder(
+    column: $table.memberType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get linkedEntityId => $composableBuilder(
+    column: $table.linkedEntityId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -8410,19 +8744,29 @@ class $$UsersTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> mobileNo = const Value.absent(),
                 Value<String> username = const Value.absent(),
                 Value<String> email = const Value.absent(),
                 Value<String> passwordHash = const Value.absent(),
+                Value<String> salt = const Value.absent(),
                 Value<String> role = const Value.absent(),
+                Value<String?> memberType = const Value.absent(),
+                Value<String?> linkedEntityId = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion(
                 id: id,
+                name: name,
+                mobileNo: mobileNo,
                 username: username,
                 email: email,
                 passwordHash: passwordHash,
+                salt: salt,
                 role: role,
+                memberType: memberType,
+                linkedEntityId: linkedEntityId,
                 isActive: isActive,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -8430,19 +8774,29 @@ class $$UsersTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required String username,
-                required String email,
+                Value<String> name = const Value.absent(),
+                Value<String> mobileNo = const Value.absent(),
+                Value<String> username = const Value.absent(),
+                Value<String> email = const Value.absent(),
                 required String passwordHash,
+                Value<String> salt = const Value.absent(),
                 required String role,
+                Value<String?> memberType = const Value.absent(),
+                Value<String?> linkedEntityId = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion.insert(
                 id: id,
+                name: name,
+                mobileNo: mobileNo,
                 username: username,
                 email: email,
                 passwordHash: passwordHash,
+                salt: salt,
                 role: role,
+                memberType: memberType,
+                linkedEntityId: linkedEntityId,
                 isActive: isActive,
                 createdAt: createdAt,
                 rowid: rowid,

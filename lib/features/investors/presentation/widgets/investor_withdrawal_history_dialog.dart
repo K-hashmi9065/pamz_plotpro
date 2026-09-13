@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/pdf/investor_statement_pdf_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
@@ -10,7 +12,11 @@ import '../../../audit_log/presentation/audit_log_screen.dart';
 import '../../../profit_loss_settlement/domain/profit_loss_models.dart';
 import '../../../profit_loss_settlement/presentation/profit_loss_providers.dart';
 import '../../../profit_loss_settlement/presentation/widgets/payout_disbursement_dialog.dart';
+import '../../../projects/domain/project_model.dart';
+import '../../../projects/presentation/projects_providers.dart';
+import '../../domain/investor_model.dart';
 import '../../domain/project_investor_model.dart';
+import 'investor_statement_pdf_dialog.dart';
 
 class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
   final ProjectInvestorModel projectInvestor;
@@ -140,6 +146,107 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
         backgroundColor: AppColors.surface,
         elevation: 1,
         actions: [
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: AppColors.accent),
+            label: const Text('Share Statement PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            onPressed: () async {
+              final db = ref.read(appDatabaseProvider);
+              final prj = await (db.select(db.projects)
+                    ..where((p) => p.id.equals(projectInvestor.projectId)))
+                  .getSingleOrNull();
+              final inv = await (db.select(db.investors)
+                    ..where((i) => i.id.equals(projectInvestor.investorId)))
+                  .getSingleOrNull();
+
+              final rawPi = await (db.select(db.projectInvestors)
+                    ..where((pi) =>
+                        pi.investorId.equals(projectInvestor.investorId)))
+                  .get();
+              final allPi = rawPi
+                  .where((pi) => pi.projectId == projectInvestor.projectId)
+                  .toList();
+              final investments = allPi.map((pi) {
+                final method = OwnershipMethod.values.firstWhere(
+                  (m) => m.name == pi.ownershipMethod,
+                  orElse: () => OwnershipMethod.capitalBased,
+                );
+                return ProjectInvestorModel(
+                  id: pi.id,
+                  projectId: pi.projectId,
+                  investorId: pi.investorId,
+                  investorName: projectInvestor.investorName,
+                  investedAmount: pi.investedAmount,
+                  ownershipPercent: pi.ownershipPercent,
+                  ownershipMethod: method,
+                  createdAt: pi.createdAt,
+                );
+              }).toList();
+
+              final withdrawals = withdrawalLogs.map((log) {
+                return InvestorWithdrawalRecord(
+                  date: log.timestamp,
+                  amount: _parseAmountFromLog(log.details),
+                  reference: _parseReferenceFromLog(log.details),
+                  disbursedBy: log.userId,
+                );
+              }).toList();
+              withdrawals.sort((a, b) => b.date.compareTo(a.date));
+
+              final projectModel = prj != null
+                  ? ProjectModel(
+                      id: prj.id,
+                      name: prj.name,
+                      code: prj.code,
+                      location: prj.location,
+                      landAreaSqFt: prj.landAreaSqFt,
+                      purchasePrice: prj.purchasePrice,
+                      actualCost: prj.actualCost,
+                      status: ProjectStatus.values.firstWhere(
+                          (s) => s.name == prj.status,
+                          orElse: () => ProjectStatus.active),
+                      createdAt: prj.createdAt,
+                    )
+                  : ProjectModel(
+                      id: projectInvestor.projectId,
+                      name: projectName,
+                      code: projectCode,
+                      location: '',
+                      landAreaSqFt: 0,
+                      purchasePrice: 0,
+                      actualCost: 0,
+                      status: ProjectStatus.active,
+                      createdAt: DateTime.now(),
+                    );
+
+              final investorModel = inv != null
+                  ? InvestorModel(
+                      id: inv.id,
+                      name: inv.name,
+                      phone: inv.phone,
+                      email: inv.email,
+                      pan: inv.pan,
+                      createdAt: inv.createdAt,
+                    )
+                  : null;
+
+              if (context.mounted) {
+                InvestorStatementPdfDialog.show(
+                  context,
+                  project: projectModel,
+                  investor: investorModel,
+                  investorName: projectInvestor.investorName,
+                  ownershipPercent: projectInvestor.ownershipPercent,
+                  investments: investments,
+                  withdrawals: withdrawals,
+                  profitShare: profitShare,
+                );
+              }
+            },
+          ),
+          const SizedBox(width: 8),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent,

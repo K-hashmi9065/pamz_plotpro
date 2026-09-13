@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/calculation_engine.dart';
 import '../../../core/widgets/formula_explainability_dialog.dart';
+import '../../../features/auth/presentation/auth_provider.dart';
+import '../../../features/auth/presentation/widgets/add_member_dialog.dart';
 import '../../../shared/providers/navigation_providers.dart';
 import '../../../shared/widgets/page/page_header.dart';
 import '../../../shared/widgets/page/status_badge.dart';
@@ -25,7 +27,7 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentRole = ref.watch(currentRoleProvider);
+    final currentRole = ref.watch(currentUserProvider)?.role ?? UserRole.admin;
     final selectedProjectId = ref.watch(selectedProjectFilterProvider);
     final selectedDateRange = ref.watch(selectedDashboardDateRangeProvider);
     final projectsAsync = ref.watch(projectsListStreamProvider);
@@ -112,6 +114,23 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                   );
                 },
               ),
+              const SizedBox(width: 10),
+              // Add Member Button (Admin only)
+              if (currentRole.isAdmin)
+                FilledButton.icon(
+                  onPressed: () => AddMemberDialog.show(context),
+                  icon: const Icon(Icons.person_add_outlined, size: 16),
+                  label: const Text('Add Member'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 0),
+                    minimumSize: const Size(0, 36),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 20),

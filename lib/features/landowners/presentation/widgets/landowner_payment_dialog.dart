@@ -8,8 +8,10 @@ import '../../../../core/utils/calculation_engine.dart';
 import '../../../installments_payments/domain/installment_model.dart';
 import '../../../installments_payments/presentation/installments_providers.dart';
 import '../../../projects/domain/project_model.dart';
+import '../../../projects/presentation/projects_providers.dart';
 import '../../domain/purchase_agreement_model.dart';
 import '../landowners_providers.dart';
+import 'landowner_invoice_pdf_dialog.dart';
 
 class LandownerPaymentDialog extends ConsumerStatefulWidget {
   final ProjectModel project;
@@ -110,10 +112,42 @@ class _LandownerPaymentDialogState
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              'Landowner payment of ${CalculationEngine.formatCurrency(parsedAmount)} recorded successfully!',
+              'Landowner payment of ${CalculationEngine.formatCurrency(parsedAmount)} recorded! Opening Statement...',
             ),
           ),
         );
+
+        final db = ref.read(appDatabaseProvider);
+        final paInsts = await (db.select(db.installments)
+              ..where((i) => i.purchaseAgreementId.equals(agreement.id)))
+            .get();
+        final instIds = paInsts.map((i) => i.id).toSet();
+        final allTxs = await (db.select(db.transactions)
+              ..where((t) => t.projectId.equals(widget.project.id)))
+            .get();
+        final txs = allTxs.where((t) {
+          if (t.isVoided) return false;
+          if (t.installmentId != null && instIds.contains(t.installmentId)) return true;
+          if (t.installmentId == null) return true;
+          return false;
+        }).toList();
+        txs.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+
+        final landowners = ref.read(landownersListStreamProvider).value ?? [];
+        final landowner = landowners
+            .where((l) =>
+                l.id == (widget.project.landownerId ?? agreement.landownerId))
+            .firstOrNull;
+
+        if (mounted) {
+          LandownerInvoicePdfDialog.show(
+            context,
+            project: widget.project,
+            agreement: agreement,
+            landowner: landowner,
+            transactions: txs,
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

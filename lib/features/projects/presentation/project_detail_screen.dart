@@ -1024,10 +1024,11 @@ class _PlotsTab extends ConsumerWidget {
             data: (plots) {
               return CustomDataTable(
                 columns: const [
-                  DataTableColumn(label: 'Plot No.', width: 140),
-                  DataTableColumn(label: 'Plot Area', width: 150),
-                  DataTableColumn(label: 'Allocated Cost', width: 150),
-                  DataTableColumn(label: 'Sell Price', width: 150),
+                  DataTableColumn(label: 'Plot No.', width: 130),
+                  DataTableColumn(label: 'Plot Area', width: 130),
+                  DataTableColumn(label: 'Total Cost (Land + Exp.)', width: 175),
+                  DataTableColumn(label: 'Sell Price', width: 140),
+                  DataTableColumn(label: 'Profit / Loss', width: 150),
                   DataTableColumn(label: 'Status', width: 130),
                   DataTableColumn(
                     label: 'Actions',
@@ -1036,6 +1037,10 @@ class _PlotsTab extends ConsumerWidget {
                   ),
                 ],
                 rows: plots.map((p) {
+                  final profitLoss = p.expectedPrice - p.allocatedCost;
+                  final isProfit = profitLoss > 0;
+                  final isLoss = profitLoss < 0;
+
                   return [
                     InkWell(
                       onTap: () => PlotDetailsDialog.show(context, p),
@@ -1059,6 +1064,25 @@ class _PlotsTab extends ConsumerWidget {
                         : Text(
                             CalculationEngine.formatCurrency(p.expectedPrice),
                             style: AppTypography.amountMedium,
+                          ),
+                    p.isRoad
+                        ? Text(
+                            '—',
+                            style: AppTypography.secondary,
+                          )
+                        : Text(
+                            profitLoss == 0
+                                ? '₹0'
+                                : '${isProfit ? '+' : ''}${CalculationEngine.formatCurrency(profitLoss)}',
+                            style: AppTypography.amountMedium.copyWith(
+                              color: isProfit
+                                  ? AppColors.successText
+                                  : isLoss
+                                      ? AppColors.dangerText
+                                      : AppColors.textSecondary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                            ),
                           ),
                     p.isRoad
                         ? Text(

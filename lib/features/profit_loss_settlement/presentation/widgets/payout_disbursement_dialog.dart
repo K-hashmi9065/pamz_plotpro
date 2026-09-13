@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/pdf/investor_statement_pdf_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
+import '../../../investors/domain/investor_model.dart';
+import '../../../investors/domain/project_investor_model.dart';
+import '../../../investors/presentation/widgets/investor_statement_pdf_dialog.dart';
+import '../../../projects/domain/project_model.dart';
+import '../../../projects/presentation/projects_providers.dart';
 import '../../domain/profit_loss_models.dart';
 import '../profit_loss_providers.dart';
 
@@ -81,8 +88,111 @@ class _PayoutDisbursementDialogState extends ConsumerState<PayoutDisbursementDia
         final navigator = Navigator.of(context);
         navigator.pop();
         messenger.showSnackBar(
-          const SnackBar(content: Text('Investor payout recorded successfully!')),
+          const SnackBar(content: Text('Investor payout recorded! Opening Statement PDF...')),
         );
+
+        final db = ref.read(appDatabaseProvider);
+        final prj = await (db.select(db.projects)
+              ..where((p) => p.id.equals(widget.payout.projectId)))
+            .getSingleOrNull();
+        final inv = await (db.select(db.investors)
+              ..where((i) => i.id.equals(widget.payout.investorId)))
+            .getSingleOrNull();
+
+        final piRows = await (db.select(db.projectInvestors)
+              ..where((pi) => pi.investorId.equals(widget.payout.investorId)))
+            .get();
+        final allPi = piRows.where((pi) => pi.projectId == widget.payout.projectId).toList();
+        final investments = allPi.map((pi) {
+          final method = OwnershipMethod.values.firstWhere(
+            (m) => m.name == pi.ownershipMethod,
+            orElse: () => OwnershipMethod.capitalBased,
+          );
+          return ProjectInvestorModel(
+            id: pi.id,
+            projectId: pi.projectId,
+            investorId: pi.investorId,
+            investorName: widget.payout.investorName,
+            investedAmount: pi.investedAmount,
+            ownershipPercent: pi.ownershipPercent,
+            ownershipMethod: method,
+            createdAt: pi.createdAt,
+          );
+        }).toList();
+
+        final allLogs = await (db.select(db.auditLogs)
+              ..where((l) => l.action.equals('DISBURSE_INVESTOR_PAYOUT')))
+            .get();
+        final logs = allLogs.where((l) => l.entityId == widget.payout.id || l.details.contains(widget.payout.id)).toList();
+        final withdrawals = logs.map((log) {
+          double amt = 0.0;
+          final match = RegExp(r'₹([0-9.,]+)').firstMatch(log.details);
+          if (match != null) {
+            amt = double.tryParse(match.group(1)!.replaceAll(',', '')) ?? 0.0;
+          }
+          String ref = 'BANK_TRANSFER';
+          final refMatch = RegExp(r'Ref:\s*(.*)$').firstMatch(log.details);
+          if (refMatch != null) {
+            ref = refMatch.group(1)?.trim() ?? 'BANK_TRANSFER';
+          }
+          return InvestorWithdrawalRecord(
+            date: log.timestamp,
+            amount: amt,
+            reference: ref,
+            disbursedBy: log.userId,
+          );
+        }).toList();
+        withdrawals.sort((a, b) => b.date.compareTo(a.date));
+
+        final projectModel = prj != null
+            ? ProjectModel(
+                id: prj.id,
+                name: prj.name,
+                code: prj.code,
+                location: prj.location,
+                landAreaSqFt: prj.landAreaSqFt,
+                purchasePrice: prj.purchasePrice,
+                actualCost: prj.actualCost,
+                status: ProjectStatus.values.firstWhere(
+                    (s) => s.name == prj.status,
+                    orElse: () => ProjectStatus.active),
+                createdAt: prj.createdAt,
+              )
+            : ProjectModel(
+                id: widget.payout.projectId,
+                name: 'Project',
+                code: 'PRJ',
+                location: '',
+                landAreaSqFt: 0,
+                purchasePrice: 0,
+                actualCost: 0,
+                status: ProjectStatus.active,
+                createdAt: DateTime.now(),
+              );
+
+        final investorModel = inv != null
+            ? InvestorModel(
+                id: inv.id,
+                name: inv.name,
+                phone: inv.phone,
+                email: inv.email,
+                pan: inv.pan,
+                createdAt: inv.createdAt,
+              )
+            : null;
+
+        if (mounted) {
+          InvestorStatementPdfDialog.show(
+            context,
+            project: projectModel,
+            investor: investorModel,
+            investorName: widget.payout.investorName,
+            ownershipPercent: widget.payout.ownershipPercent,
+            investments: investments,
+            withdrawals: withdrawals,
+            profitShare: widget.payout.allocatedProfitShare,
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

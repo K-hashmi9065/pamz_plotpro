@@ -29,12 +29,15 @@ class HiveService {
     required String userId,
     required String username,
     required String role,
+    String? memberType,
   }) async {
     await _sessionBox?.put('userId', userId);
     await _sessionBox?.put('username', username);
     await _sessionBox?.put('role', role);
+    await _sessionBox?.put('memberType', memberType ?? '');
     await _sessionBox?.put('loggedInAt', DateTime.now().toIso8601String());
   }
+
 
   static Map<String, dynamic>? getUserSession() {
     if (_sessionBox == null || !_sessionBox!.containsKey('userId')) {

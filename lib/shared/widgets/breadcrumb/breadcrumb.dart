@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../features/auth/presentation/auth_provider.dart';
 
-class Breadcrumb extends StatelessWidget {
+class Breadcrumb extends ConsumerWidget {
   const Breadcrumb({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.path;
+    final currentUser = ref.watch(currentUserProvider);
+    final isMember = currentUser?.isMember ?? false;
+
+    // For member dashboard routes, don't show the admin breadcrumb navigation
+    if (isMember || location.startsWith('/my')) {
+      return const SizedBox.shrink();
+    }
+
     final segments = location
         .split('/')
         .where((s) => s.isNotEmpty)

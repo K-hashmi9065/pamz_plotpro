@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
+import '../../features/auth/domain/member_type.dart';
 import 'nav_item.dart';
 
 /// Centralized data tree for sidebar navigation items.
@@ -77,7 +78,7 @@ abstract class NavItemsData {
       id: 'help_user_guide',
       title: 'Help / User Guide',
       icon: Icons.help_outline,
-      routePath: '/help-guide', // Permanent Help item
+      routePath: '/help-guide',
     ),
     NavItem(
       id: 'settings',
@@ -88,11 +89,42 @@ abstract class NavItemsData {
     ),
   ];
 
-  /// Returns filtered nav items based on user role.
-  /// For Member, [adminOnly] items (Investors, Audit Log, Settings) are COMPLETELY ABSENT.
-  static List<NavItem> getNavItemsForRole(UserRole role) {
+  /// Member-specific nav items (keyed by MemberType)
+  static NavItem memberDashboardNavItem(MemberType memberType) {
+    switch (memberType) {
+      case MemberType.customerBuyer:
+        return const NavItem(
+          id: 'my_purchases',
+          title: 'My Purchases',
+          icon: Icons.home_outlined,
+          routePath: '/my/buyer',
+        );
+      case MemberType.investor:
+        return const NavItem(
+          id: 'my_investments',
+          title: 'My Investments',
+          icon: Icons.pie_chart_outline,
+          routePath: '/my/investor',
+        );
+      case MemberType.landowner:
+        return const NavItem(
+          id: 'my_land',
+          title: 'My Land Sales',
+          icon: Icons.landscape_outlined,
+          routePath: '/my/landowner',
+        );
+    }
+  }
+
+  /// Returns filtered nav items based on user role and member type.
+  static List<NavItem> getNavItemsForRole(UserRole role,
+      [MemberType? memberType]) {
     if (role.isAdmin) {
       return allNavItems;
+    }
+    // Member — show only their personal dashboard
+    if (memberType != null) {
+      return [memberDashboardNavItem(memberType)];
     }
     return allNavItems.where((item) => !item.adminOnly).toList();
   }

@@ -10,7 +10,10 @@ import '../../../../shared/widgets/page/status_badge.dart';
 import '../../../installments_payments/domain/installment_model.dart';
 import '../../../installments_payments/presentation/installments_providers.dart';
 import '../../../projects/domain/project_model.dart';
+import '../../../projects/presentation/projects_providers.dart';
 import '../../domain/purchase_agreement_model.dart';
+import '../landowners_providers.dart';
+import 'landowner_invoice_pdf_dialog.dart';
 import 'landowner_payment_dialog.dart';
 
 class LandownerPaymentHistoryDialog extends ConsumerWidget {
@@ -137,6 +140,47 @@ class LandownerPaymentHistoryDialog extends ConsumerWidget {
           backgroundColor: AppColors.surface,
           elevation: 1,
           actions: [
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: AppColors.accent),
+              label: const Text('Share Statement PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              onPressed: () async {
+                final db = ref.read(appDatabaseProvider);
+                final paInsts = await (db.select(db.installments)
+                      ..where((i) => i.purchaseAgreementId.equals(purchaseAgreement.id)))
+                    .get();
+                final instIds = paInsts.map((i) => i.id).toSet();
+                final allTxs = await (db.select(db.transactions)
+                      ..where((t) => t.projectId.equals(project.id)))
+                    .get();
+                final txs = allTxs.where((t) {
+                  if (t.isVoided) return false;
+                  if (t.installmentId != null && instIds.contains(t.installmentId)) return true;
+                  if (t.installmentId == null) return true;
+                  return false;
+                }).toList();
+                txs.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+
+                final landowners = ref.read(landownersListStreamProvider).value ?? [];
+                final landowner = landowners
+                    .where((l) =>
+                        l.id == (project.landownerId ?? purchaseAgreement.landownerId))
+                    .firstOrNull;
+
+                if (context.mounted) {
+                  LandownerInvoicePdfDialog.show(
+                    context,
+                    project: project,
+                    agreement: purchaseAgreement,
+                    landowner: landowner,
+                    transactions: txs,
+                  );
+                }
+              },
+            ),
+            const SizedBox(width: 8),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,

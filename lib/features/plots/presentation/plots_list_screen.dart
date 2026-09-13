@@ -349,14 +349,19 @@ class PlotsListScreen extends ConsumerWidget {
 
               return CustomDataTable(
                 columns: const [
-                  DataTableColumn(label: 'Plot Number', width: 140),
+                  DataTableColumn(label: 'Plot Number', width: 130),
                   DataTableColumn(label: 'Plot Area', width: 130),
-                  DataTableColumn(label: 'Allocated Cost', width: 180),
-                  DataTableColumn(label: 'Sell Price', width: 150),
+                  DataTableColumn(label: 'Total Cost (Land + Exp.)', width: 180),
+                  DataTableColumn(label: 'Sell Price', width: 140),
+                  DataTableColumn(label: 'Profit / Loss', width: 150),
                   DataTableColumn(label: 'Status', width: 130),
                   DataTableColumn(label: 'Actions', width: 165, alignment: Alignment.center),
                 ],
                 rows: filtered.map((plot) {
+                  final profitLoss = plot.expectedPrice - plot.allocatedCost;
+                  final isProfit = profitLoss > 0;
+                  final isLoss = profitLoss < 0;
+
                   return [
                     InkWell(
                       onTap: () => PlotDetailsDialog.show(context, plot),
@@ -391,7 +396,7 @@ class PlotsListScreen extends ConsumerWidget {
                             return FormulaInfoButton(
                               figureTitle: 'Plot Cost Allocation (${plot.plotNumber})',
                               plainWordsFormula:
-                                  'Allocated Plot Cost = (Plot Area / Total Project Land Area) * Actual Project Cost',
+                                  'Total Plot Cost = (Plot Area / Total Project Land Area) * (Land Purchase Price + Expenses)',
                               terms: [
                                 FormulaTermDefinition(
                                   term: 'Plot Area',
@@ -404,8 +409,8 @@ class PlotsListScreen extends ConsumerWidget {
                                   valueDisplay: '${totalArea.round()} sq.ft',
                                 ),
                                 FormulaTermDefinition(
-                                  term: 'Actual Project Cost',
-                                  definition: 'Total purchase price plus capitalized expenses.',
+                                  term: 'Total Project Cost (Land + Exp.)',
+                                  definition: 'Master land purchase price plus all capitalized project expenses.',
                                   valueDisplay: CalculationEngine.formatCurrency(totalCost),
                                 ),
                               ],
@@ -423,6 +428,22 @@ class PlotsListScreen extends ConsumerWidget {
                             style: AppTypography.amountMedium.copyWith(
                               fontSize: 14,
                               color: AppColors.successText,
+                            ),
+                          ),
+                    plot.isRoad
+                        ? Text('—', style: AppTypography.secondary)
+                        : Text(
+                            profitLoss == 0
+                                ? '₹0'
+                                : '${isProfit ? '+' : ''}${CalculationEngine.formatCurrency(profitLoss)}',
+                            style: AppTypography.amountMedium.copyWith(
+                              color: isProfit
+                                  ? AppColors.successText
+                                  : isLoss
+                                      ? AppColors.dangerText
+                                      : AppColors.textSecondary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
                             ),
                           ),
                     plot.isRoad

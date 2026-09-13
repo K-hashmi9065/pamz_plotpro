@@ -17,7 +17,7 @@ class PlotsRepository {
 
   PlotsRepository(this._db);
 
-  PlotModel _toModel(Plot row) {
+  PlotModel toModel(Plot row) {
     final statusEnum = PlotStatus.values.firstWhere(
       (s) => s.name == row.status,
       orElse: () => PlotStatus.available,
@@ -47,7 +47,7 @@ class PlotsRepository {
   Stream<List<PlotModel>> watchAllPlots() {
     _syncAllProjectCostAllocations();
     return _db.select(_db.plots).watch().map(
-          (rows) => rows.map(_toModel).toList(),
+          (rows) => rows.map(toModel).toList(),
         );
   }
 
@@ -55,7 +55,7 @@ class PlotsRepository {
   Stream<List<PlotModel>> watchPlotsForProject(String projectId) {
     recalculateProjectCostAllocation(projectId);
     final query = _db.select(_db.plots)..where((tbl) => tbl.projectId.equals(projectId));
-    return query.watch().map((rows) => rows.map(_toModel).toList());
+    return query.watch().map((rows) => rows.map(toModel).toList());
   }
 
   Future<void> _syncAllProjectCostAllocations() async {
@@ -128,7 +128,7 @@ class PlotsRepository {
         );
 
     final row = await (_db.select(_db.plots)..where((tbl) => tbl.id.equals(id))).getSingle();
-    return _toModel(row);
+    return toModel(row);
   }
 
   /// Create multiple plots with identical dimensions/measurements in batch
@@ -200,7 +200,7 @@ class PlotsRepository {
         );
 
     final rows = await (_db.select(_db.plots)..where((tbl) => tbl.id.isIn(createdIds))).get();
-    final modelMap = {for (final r in rows) r.id: _toModel(r)};
+    final modelMap = {for (final r in rows) r.id: toModel(r)};
     return createdIds.map((id) => modelMap[id]!).toList();
   }
 
