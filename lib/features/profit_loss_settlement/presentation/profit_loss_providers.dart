@@ -16,6 +16,7 @@ final projectProfitLossStreamProvider =
     StreamProvider<List<ProjectProfitLossModel>>((ref) {
   final sales = ref.watch(salesListStreamProvider).value ?? [];
   final txs = ref.watch(transactionsListStreamProvider).value ?? [];
+  final installments = ref.watch(installmentsListStreamProvider).value ?? [];
   final expenses = ref.watch(expensesListStreamProvider).value ?? [];
   final projects = ref.watch(projectsListStreamProvider).value ?? [];
 
@@ -24,13 +25,39 @@ final projectProfitLossStreamProvider =
     final projectSales = sales.where((s) => s.projectId == project.id).toList();
     double totalAgreedSales = 0.0;
     double directSaleExpenses = 0.0;
+    final projectSaleIds = <String>{};
     for (final s in projectSales) {
       totalAgreedSales += s.agreedPrice;
       directSaleExpenses += s.saleExpenses;
+      projectSaleIds.add(s.id);
     }
 
-    final projectTxs = txs.where((t) => t.projectId == project.id && !t.isVoided).toList();
-    final cashCollected = projectTxs.fold(0.0, (sum, t) => sum + t.amount);
+    // Exclude landowner payment installments
+    final paInstIds = installments
+        .where((i) => i.purchaseAgreementId != null)
+        .map((i) => i.id)
+        .toSet();
+
+    final projectSaleInstallments = installments
+        .where((i) => i.saleId != null && projectSaleIds.contains(i.saleId))
+        .toList();
+
+    // Only collect transactions linked to plot sales (excluding landowner outflows)
+    final projectSaleTxs = txs
+        .where((t) =>
+            t.projectId == project.id &&
+            !t.isVoided &&
+            (t.installmentId == null || !paInstIds.contains(t.installmentId)))
+        .toList();
+
+    double cashCollected =
+        projectSaleTxs.fold(0.0, (sum, t) => sum + t.amount);
+
+    // Fallback to plot sales installment paid amounts if direct transactions aren't logged
+    if (cashCollected == 0.0 && projectSaleInstallments.isNotEmpty) {
+      cashCollected = projectSaleInstallments.fold(
+          0.0, (sum, inst) => sum + inst.paidAmount);
+    }
 
     final projectExpenses = expenses.where((e) => e.projectId == project.id).toList();
     final totalCapitalized = projectExpenses

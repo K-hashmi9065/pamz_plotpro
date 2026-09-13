@@ -33,9 +33,8 @@ final _routerNotifierProvider = Provider<RouterNotifier>((ref) {
 });
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-/// Central GoRouter configuration with ShellRoute and Role Guard.
+/// Central GoRouter configuration with StatefulShellRoute and Role Guard.
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.read(_routerNotifierProvider);
 
@@ -55,63 +54,114 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) {
-          return AppShell(child: child);
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AppShell(navigationShell: navigationShell);
         },
-        routes: [
-          GoRoute(
-            path: AppRoutes.dashboard,
-            builder: (context, state) => const ExecutiveDashboardScreen(),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.dashboard,
+                builder: (context, state) => const ExecutiveDashboardScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.projects,
-            builder: (context, state) => const ProjectsListScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.projects,
+                builder: (context, state) => const ProjectsListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.landowners,
-            builder: (context, state) => const LandownersListScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.landowners,
+                builder: (context, state) => const LandownersListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.investors, // Admin Only
-            builder: (context, state) => const InvestorsListScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.investors, // Admin Only
+                builder: (context, state) => const InvestorsListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.expenses,
-            builder: (context, state) => const ExpensesListScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.expenses,
+                builder: (context, state) => const ExpensesListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.plots,
-            builder: (context, state) => const PlotsListScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.plots,
+                builder: (context, state) => const PlotsListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.buyersSales,
-            builder: (context, state) => const BuyersSalesListScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.buyersSales,
+                builder: (context, state) => const BuyersSalesListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.installments,
-            builder: (context, state) => const InstallmentsListScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.installments,
+                builder: (context, state) => const InstallmentsListScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.receivablesPayables,
-            builder: (context, state) => const ReceivablesPayablesScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.receivablesPayables,
+                builder: (context, state) => const ReceivablesPayablesScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.profitLoss,
-            builder: (context, state) => const ProfitLossScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profitLoss,
+                builder: (context, state) => const ProfitLossScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.auditLog, // Admin Only
-            builder: (context, state) => const AuditLogScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.auditLog, // Admin Only
+                builder: (context, state) => const AuditLogScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.helpGuide, // Permanent Help / User Guide
-            builder: (context, state) => const HelpGuideScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.helpGuide, // Permanent Help / User Guide
+                builder: (context, state) => const HelpGuideScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoutes.settings, // Admin Only
-            builder: (context, state) => const SettingsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.settings, // Admin Only
+                builder: (context, state) => const SettingsScreen(),
+              ),
+            ],
           ),
         ],
       ),

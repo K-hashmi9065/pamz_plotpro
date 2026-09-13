@@ -22,17 +22,40 @@ class ProfitLossRepository {
 
         double totalAgreedSales = 0.0;
         double directSaleExpenses = 0.0;
+        final saleIds = <String>{};
         for (final s in sales) {
           totalAgreedSales += s.agreedPrice;
           directSaleExpenses += s.saleExpenses;
+          saleIds.add(s.id);
         }
 
-        // Cash collected from non-voided transactions
+        // Landowner payment installment IDs (to exclude from sales cash collected)
+        final paInstallments = await (_db.select(_db.installments)
+              ..where((tbl) => tbl.purchaseAgreementId.isNotNull()))
+            .get();
+        final paInstIds = paInstallments.map((i) => i.id).toSet();
+
+        // Installments for project plot sales
+        final saleInstallments = saleIds.isEmpty
+            ? <Installment>[]
+            : await (_db.select(_db.installments)
+                  ..where((tbl) => tbl.saleId.isIn(saleIds)))
+                .get();
+
+        // Cash collected from non-voided plot sales transactions
         final txs = await (_db.select(_db.transactions)
               ..where((tbl) => tbl.projectId.equals(project.id) & tbl.isVoided.equals(false)))
             .get();
 
-        final cashCollected = txs.fold(0.0, (sum, tx) => sum + tx.amount);
+        double cashCollected = 0.0;
+        for (final tx in txs) {
+          if (tx.installmentId == null || !paInstIds.contains(tx.installmentId)) {
+            cashCollected += tx.amount;
+          }
+        }
+        if (cashCollected == 0.0 && saleInstallments.isNotEmpty) {
+          cashCollected = saleInstallments.fold(0.0, (sum, inst) => sum + inst.paidAmount);
+        }
 
         // Fetch all project expenses dynamically
         final expenses = await (_db.select(_db.expenses)

@@ -108,11 +108,35 @@ class ReceivablesPayablesRepository {
       final results = <ProjectCashFlowModel>[];
 
       for (final project in projects) {
-        // Inflows: Non-voided transactions for this project
+        final sales = await (_db.select(_db.sales)
+              ..where((tbl) => tbl.projectId.equals(project.id)))
+            .get();
+        final saleIds = sales.map((s) => s.id).toSet();
+
+        final saleInsts = saleIds.isEmpty
+            ? <Installment>[]
+            : await (_db.select(_db.installments)
+                  ..where((tbl) => tbl.saleId.isIn(saleIds)))
+                .get();
+        // Landowner payment installments (to exclude from cash inflows)
+        final paInsts = await (_db.select(_db.installments)
+              ..where((tbl) => tbl.purchaseAgreementId.isNotNull()))
+            .get();
+        final paInstIds = paInsts.map((i) => i.id).toSet();
+
+        // Inflows: Non-voided plot sales transactions for this project
         final txs = await (_db.select(_db.transactions)
               ..where((tbl) => tbl.projectId.equals(project.id) & tbl.isVoided.equals(false)))
             .get();
-        final totalInflows = txs.fold(0.0, (sum, tx) => sum + tx.amount);
+        double totalInflows = 0.0;
+        for (final tx in txs) {
+          if (tx.installmentId == null || !paInstIds.contains(tx.installmentId)) {
+            totalInflows += tx.amount;
+          }
+        }
+        if (totalInflows == 0.0 && saleInsts.isNotEmpty) {
+          totalInflows = saleInsts.fold(0.0, (sum, inst) => sum + inst.paidAmount);
+        }
 
         // Land Outflows: Purchase Agreements for this project
         final agreements = await (_db.select(_db.purchaseAgreements)

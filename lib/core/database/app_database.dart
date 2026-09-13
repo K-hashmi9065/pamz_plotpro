@@ -283,6 +283,10 @@ class AppDatabase extends _$AppDatabase {
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON;');
+          await customStatement('PRAGMA journal_mode = WAL;');
+          await customStatement('PRAGMA synchronous = NORMAL;');
+          await customStatement('PRAGMA cache_size = -488000;'); // 488MB memory cache
+          await customStatement('PRAGMA temp_store = MEMORY;');
           try {
             await customStatement('ALTER TABLE plots ADD COLUMN length_ft REAL;');
           } catch (_) {}
@@ -309,6 +313,19 @@ class AppDatabase extends _$AppDatabase {
           } catch (_) {}
           try {
             await customStatement('CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_name_unique ON projects(LOWER(TRIM(name)));');
+          } catch (_) {}
+          try {
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_plots_project_id ON plots(project_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_expenses_project_id ON expenses(project_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_sales_project_id ON sales(project_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_sales_buyer_id ON sales(buyer_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_installments_sale_id ON installments(sale_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_installments_agreement_id ON installments(purchase_agreement_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_transactions_project_id ON transactions(project_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_transactions_installment_id ON transactions(installment_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_project_investors_project_id ON project_investors(project_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_distributions_project_id ON distributions(project_id);');
+            await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);');
           } catch (_) {}
         },
       );

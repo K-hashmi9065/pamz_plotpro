@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 
@@ -15,11 +14,9 @@ class DataTableColumn {
   });
 }
 
-final tableHoveredRowProvider = StateProvider.autoDispose.family<bool, int>((ref, rowIndex) => false);
-
 /// Enterprise Data Table with header styling, hoverable rows, loading, empty states,
 /// and visible responsive horizontal scrollbar support.
-class CustomDataTable extends ConsumerWidget {
+class CustomDataTable extends StatefulWidget {
   final List<DataTableColumn> columns;
   final List<List<Widget>> rows;
   final bool isLoading;
@@ -34,11 +31,30 @@ class CustomDataTable extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scrollController = ScrollController();
-    final verticalScrollController = ScrollController();
+  State<CustomDataTable> createState() => _CustomDataTableState();
+}
 
-    if (isLoading) {
+class _CustomDataTableState extends State<CustomDataTable> {
+  late final ScrollController _scrollController;
+  late final ScrollController _verticalScrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _verticalScrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _verticalScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.isLoading) {
       return Container(
         height: 250,
         alignment: Alignment.center,
@@ -73,7 +89,7 @@ class CustomDataTable extends ConsumerWidget {
       );
     }
 
-    if (rows.isEmpty) {
+    if (widget.rows.isEmpty) {
       return Container(
         height: 220,
         width: double.infinity,
@@ -104,7 +120,7 @@ class CustomDataTable extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              emptyMessage,
+              widget.emptyMessage,
               style: AppTypography.body.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
@@ -125,7 +141,7 @@ class CustomDataTable extends ConsumerWidget {
       clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final totalWidth = columns.fold<double>(
+          final totalWidth = widget.columns.fold<double>(
             32.0, // 16px left + 16px right row padding
             (sum, col) => sum + (col.width ?? 180.0),
           );
@@ -137,15 +153,15 @@ class CustomDataTable extends ConsumerWidget {
           final hasBoundedHeight = constraints.hasBoundedHeight;
 
           final rowsWidget = ListView.separated(
-            controller: hasBoundedHeight ? verticalScrollController : null,
+            controller: hasBoundedHeight ? _verticalScrollController : null,
             shrinkWrap: !hasBoundedHeight,
             physics: hasBoundedHeight ? const ClampingScrollPhysics() : const NeverScrollableScrollPhysics(),
-            itemCount: rows.length,
+            itemCount: widget.rows.length,
             separatorBuilder: (context, index) => const Divider(height: 1, color: AppColors.borderLight),
             itemBuilder: (context, rowIndex) {
-              final rowCells = rows[rowIndex];
+              final rowCells = widget.rows[rowIndex];
               return _DataTableRow(
-                columns: columns,
+                columns: widget.columns,
                 rowCells: rowCells,
                 rowIndex: rowIndex,
               );
@@ -153,11 +169,11 @@ class CustomDataTable extends ConsumerWidget {
           );
 
           return Scrollbar(
-            controller: scrollController,
+            controller: _scrollController,
             thumbVisibility: true,
             trackVisibility: true,
             child: SingleChildScrollView(
-              controller: scrollController,
+              controller: _scrollController,
               scrollDirection: Axis.horizontal,
               child: SizedBox(
                 width: minWidth,
@@ -174,7 +190,7 @@ class CustomDataTable extends ConsumerWidget {
                         ),
                       ),
                       child: Row(
-                        children: columns.map((col) {
+                        children: widget.columns.map((col) {
                           final headerWidget = Container(
                             alignment: col.alignment,
                             child: Text(
@@ -193,7 +209,7 @@ class CustomDataTable extends ConsumerWidget {
                     if (hasBoundedHeight)
                       Expanded(
                         child: Scrollbar(
-                          controller: verticalScrollController,
+                          controller: _verticalScrollController,
                           thumbVisibility: true,
                           child: rowsWidget,
                         ),
@@ -211,7 +227,7 @@ class CustomDataTable extends ConsumerWidget {
   }
 }
 
-class _DataTableRow extends ConsumerWidget {
+class _DataTableRow extends StatefulWidget {
   final List<DataTableColumn> columns;
   final List<Widget> rowCells;
   final int rowIndex;
@@ -223,21 +239,26 @@ class _DataTableRow extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isHovered = ref.watch(tableHoveredRowProvider(rowIndex));
+  State<_DataTableRow> createState() => _DataTableRowState();
+}
 
+class _DataTableRowState extends State<_DataTableRow> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => ref.read(tableHoveredRowProvider(rowIndex).notifier).state = true,
-      onExit: (_) => ref.read(tableHoveredRowProvider(rowIndex).notifier).state = false,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-        color: isHovered ? AppColors.surfaceVariant : AppColors.surface,
+        color: _isHovered ? AppColors.surfaceVariant : AppColors.surface,
         child: Row(
-          children: List.generate(columns.length, (colIndex) {
-            final col = columns[colIndex];
-            final cellWidget = colIndex < rowCells.length
-                ? rowCells[colIndex]
+          children: List.generate(widget.columns.length, (colIndex) {
+            final col = widget.columns[colIndex];
+            final cellWidget = colIndex < widget.rowCells.length
+                ? widget.rowCells[colIndex]
                 : const SizedBox();
 
             final containerWidget = Container(

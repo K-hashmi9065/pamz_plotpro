@@ -48,7 +48,11 @@ class DashboardRepository {
         }
       }
 
-      // Cash Collected (Non-voided transactions)
+      // Dues & Receivables
+      final allInsts = await _db.select(_db.installments).get();
+      final paInstIds = allInsts.where((i) => i.purchaseAgreementId != null).map((i) => i.id).toSet();
+
+      // Cash Collected (Non-voided plot sales transactions)
       final allTxs = await (_db.select(_db.transactions)
             ..where((tbl) => tbl.isVoided.equals(false)))
           .get();
@@ -56,7 +60,21 @@ class DashboardRepository {
       for (final tx in allTxs) {
         if (projectIds.contains(tx.projectId)) {
           if (isDateInFilterRange(tx.paymentDate, dateRange)) {
-            totalCashCollected += tx.amount;
+            if (tx.installmentId == null || !paInstIds.contains(tx.installmentId)) {
+              totalCashCollected += tx.amount;
+            }
+          }
+        }
+      }
+      if (totalCashCollected == 0.0) {
+        for (final inst in allInsts) {
+          if (inst.saleId != null) {
+            final sale = allSales.where((s) => s.id == inst.saleId).firstOrNull;
+            if (sale != null && projectIds.contains(sale.projectId)) {
+              if (isDateInFilterRange(inst.dueDate, dateRange)) {
+                totalCashCollected += inst.paidAmount;
+              }
+            }
           }
         }
       }
@@ -88,8 +106,6 @@ class DashboardRepository {
       final totalOutflows = totalExpenses + totalLandPaid;
       final netCashFlow = totalCashCollected - totalOutflows;
 
-      // Dues & Receivables
-      final allInsts = await _db.select(_db.installments).get();
       double totalReceivables = 0.0;
       for (final inst in allInsts) {
         if (inst.saleId != null) {
