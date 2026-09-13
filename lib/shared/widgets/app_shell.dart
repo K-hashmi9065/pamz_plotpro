@@ -49,17 +49,33 @@ class AppShell extends StatelessWidget {
                       vertical: 16,
                     ),
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 240),
+                      duration: const Duration(milliseconds: 280),
+                      reverseDuration: const Duration(milliseconds: 180),
                       switchInCurve: Curves.easeOutCubic,
                       switchOutCurve: Curves.easeInCubic,
+                      layoutBuilder: (currentChild, previousChildren) {
+                        return Stack(
+                          alignment: Alignment.topLeft,
+                          children: <Widget>[
+                            ...previousChildren,
+                            ?currentChild,
+                          ],
+                        );
+                      },
                       transitionBuilder: (Widget child, Animation<double> animation) {
                         return FadeTransition(
-                          opacity: animation,
+                          opacity: CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeInOutCubic,
+                          ),
                           child: SlideTransition(
                             position: Tween<Offset>(
-                              begin: const Offset(0.015, 0),
+                              begin: const Offset(0, 0.012),
                               end: Offset.zero,
-                            ).animate(animation),
+                            ).animate(CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            )),
                             child: child,
                           ),
                         );

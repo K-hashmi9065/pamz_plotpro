@@ -81,20 +81,45 @@ abstract class AppTypography {
       );
 
   /// Currency figures must visually dominate metadata.
+  /// Use [amountHero] for top-level portfolio figures.
+  static TextStyle get amountHero => GoogleFonts.inter(
+        fontSize: 30,
+        fontWeight: FontWeight.w800,
+        color: AppColors.textPrimary,
+        letterSpacing: -0.8,
+        height: 1.15,
+      );
+
+  /// Currency figures must visually dominate metadata.
   /// Use [amountLarge] for primary screen totals / hero numbers.
   static TextStyle get amountLarge => GoogleFonts.inter(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
         letterSpacing: -0.5,
+        height: 1.2,
       );
 
   /// Currency figures for cards, rows, and summary tables.
   static TextStyle get amountMedium => GoogleFonts.inter(
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
         letterSpacing: -0.2,
+      );
+
+  /// Currency figures for compact badge tables or dense cells.
+  static TextStyle get amountSmall => GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+      );
+
+  /// Status badge typography.
+  static TextStyle get badge => GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.2,
       );
 }
 

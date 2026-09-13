@@ -659,45 +659,51 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
                     ValueListenableBuilder<String?>(
                       valueListenable: _selectedProjectIdNotifier,
                       builder: (context, selectedProjectId, _) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: projectsAsync.when(
-                                data: (projects) => SearchableProjectDropdown(
-                                  projects: projects,
-                                  selectedProjectId: selectedProjectId,
-                                  labelText: 'Target Project *',
-                                  onChanged: (val) {
-                                    _selectedProjectIdNotifier.value = val;
-                                    _selectedPlotIdsNotifier.value = [];
-                                  },
-                                  validator: (val) => val == null
-                                      ? 'Project * is required'
-                                      : null,
-                                ),
-                                loading: () => const LinearProgressIndicator(),
-                                error: (e, s) =>
-                                    Text('Error loading projects: $e'),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.accent,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 14,
+                        return IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: projectsAsync.when(
+                                  data: (projects) => SearchableProjectDropdown(
+                                    projects: projects,
+                                    selectedProjectId: selectedProjectId,
+                                    labelText: 'Target Project *',
+                                    onChanged: (val) {
+                                      _selectedProjectIdNotifier.value = val;
+                                      _selectedPlotIdsNotifier.value = [];
+                                    },
+                                    validator: (val) => val == null
+                                        ? 'Project * is required'
+                                        : null,
+                                  ),
+                                  loading: () => const LinearProgressIndicator(),
+                                  error: (e, s) =>
+                                      Text('Error loading projects: $e'),
                                 ),
                               ),
-                              onPressed: _createNewProject,
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text(
-                                ' New Project',
-                                style: TextStyle(fontSize: 12),
+                              const SizedBox(width: 10),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.accent,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 0,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: _createNewProject,
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text(
+                                  'New Project',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -729,42 +735,47 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
                     ValueListenableBuilder<String?>(
                       valueListenable: _selectedBuyerIdNotifier,
                       builder: (context, selectedBuyerId, _) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: buyersAsync.when(
-                                data: (buyers) => SearchableBuyerDropdown(
-                                  buyers: buyers,
-                                  selectedBuyerId: selectedBuyerId,
-                                  labelText: 'Select Buyer *',
-                                  onChanged: (val) =>
-                                      _selectedBuyerIdNotifier.value = val,
-                                  validator: (val) => val == null
-                                      ? 'Buyer * is required'
-                                      : null,
-                                ),
-                                loading: () => const LinearProgressIndicator(),
-                                error: (e, s) =>
-                                    Text('Error loading buyers: $e'),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 14,
+                        return IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: buyersAsync.when(
+                                  data: (buyers) => SearchableBuyerDropdown(
+                                    buyers: buyers,
+                                    selectedBuyerId: selectedBuyerId,
+                                    labelText: 'Select Customer *',
+                                    onChanged: (val) =>
+                                        _selectedBuyerIdNotifier.value = val,
+                                    validator: (val) => val == null
+                                        ? 'Customer * is required'
+                                        : null,
+                                  ),
+                                  loading: () => const LinearProgressIndicator(),
+                                  error: (e, s) =>
+                                      Text('Error loading customers: $e'),
                                 ),
                               ),
-                              onPressed: _createNewBuyer,
-                              icon: const Icon(Icons.person_add, size: 18),
-                              label: const Text(
-                                ' New Buyer',
-                                style: TextStyle(fontSize: 12),
+                              const SizedBox(width: 10),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 0,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: _createNewBuyer,
+                                icon: const Icon(Icons.person_add, size: 18),
+                                label: const Text(
+                                  'New Customer',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -903,10 +914,14 @@ class _SaleAgreementDialogState extends ConsumerState<SaleAgreementDialog> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.dangerText,
+                            side: const BorderSide(color: AppColors.dangerBorder),
+                          ),
                           onPressed: isSaving
                               ? null
                               : () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
+                          child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton(

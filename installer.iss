@@ -1,6 +1,6 @@
 ; Inno Setup Script for PAMZ PlotPro
 #define MyAppName "PAMZ PlotPro"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "3.0.0"
 #define MyAppPublisher "PAMZ"
 #define MyAppExeName "land_investment_and_sales_management.exe"
 
@@ -13,11 +13,13 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=installers
-OutputBaseFilename=Land_Investment_Management_Setup_v2.0.0
+OutputBaseFilename=PAMZ_PlotPro_v3.0.0_Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
+CloseApplications=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

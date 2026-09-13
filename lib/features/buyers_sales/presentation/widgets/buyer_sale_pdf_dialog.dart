@@ -43,20 +43,24 @@ class BuyerSalePdfDialog extends StatefulWidget {
       barrierDismissible: true,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border),
         ),
         backgroundColor: AppColors.surface,
+        clipBehavior: Clip.antiAlias,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: SizedBox(
-          width: 900,
-          height: 750,
-          child: BuyerSalePdfDialog(
-            sale: sale,
-            buyer: buyer,
-            projectName: projectName,
-            projectCode: projectCode,
-            projectLocation: projectLocation,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            width: 900,
+            height: 750,
+            child: BuyerSalePdfDialog(
+              sale: sale,
+              buyer: buyer,
+              projectName: projectName,
+              projectCode: projectCode,
+              projectLocation: projectLocation,
+            ),
           ),
         ),
       ),
@@ -170,7 +174,7 @@ class _BuyerSalePdfDialogState extends State<BuyerSalePdfDialog> {
         return Scaffold(
           backgroundColor: AppColors.surface,
           appBar: AppBar(
-            title: Text('Buyer Sale Agreement PDF (${widget.projectCode})', style: AppTypography.cardTitle),
+            title: Text('Customer Sale Agreement PDF (${widget.projectCode})', style: AppTypography.cardTitle),
             backgroundColor: AppColors.surface,
             elevation: 1,
             actions: [
@@ -251,7 +255,7 @@ class BuyerSalePdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'BUYER SALES AGREEMENT',
+                        'CUSTOMER SALES AGREEMENT',
                         style: pw.TextStyle(
                           fontSize: 20,
                           fontWeight: pw.FontWeight.bold,
@@ -292,7 +296,7 @@ class BuyerSalePdfService {
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('BUYER / PURCHASER:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                          pw.Text('CUSTOMER / PURCHASER:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                           pw.Text('Name: ${sale.buyerName}', style: const pw.TextStyle(fontSize: 10)),
                           pw.Text('Phone: ${buyer?.phone ?? "N/A"}', style: const pw.TextStyle(fontSize: 10)),
                           pw.Text('PAN: ${buyer?.pan ?? "N/A"}', style: const pw.TextStyle(fontSize: 10)),
@@ -340,7 +344,7 @@ class BuyerSalePdfService {
               // Section 3: Legal Terms & Compliance
               pw.Text('3. TERMS & COMPLIANCE DECLARATION', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 6),
-              pw.Bullet(text: 'The Buyer agrees to pay total agreed price as per scheduled installment milestones.', style: const pw.TextStyle(fontSize: 9)),
+              pw.Bullet(text: 'The Customer agrees to pay total agreed price as per scheduled installment milestones.', style: const pw.TextStyle(fontSize: 9)),
               pw.Bullet(text: 'Title transfer and final deed execution shall be completed upon 100% receipt of agreed sale proceeds.', style: const pw.TextStyle(fontSize: 9)),
               pw.Bullet(text: 'Compliance under Income Tax Act Section 43CA / 50C is enforced for circle rate benchmark.', style: const pw.TextStyle(fontSize: 9)),
               pw.Bullet(text: 'Failure to clear due installments within specified grace period may incur statutory interest.', style: const pw.TextStyle(fontSize: 9)),
@@ -356,7 +360,7 @@ class BuyerSalePdfService {
                     children: [
                       pw.Container(width: 160, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 4),
-                      pw.Text('Buyer / Purchaser Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                      pw.Text('Customer / Purchaser Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                       pw.Text('Name: ${sale.buyerName}', style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),

@@ -42,35 +42,73 @@ class CustomDataTable extends ConsumerWidget {
       return Container(
         height: 250,
         alignment: Alignment.center,
-        child: const CircularProgressIndicator(
-          strokeWidth: 2.5,
-          color: AppColors.accent,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border),
+          boxShadow: AppShadows.card,
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.accent,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Loading data...',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       );
     }
 
     if (rows.isEmpty) {
       return Container(
-        height: 200,
+        height: 220,
         width: double.infinity,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.border),
+          boxShadow: AppShadows.card,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.inbox_outlined,
-              size: 44,
-              color: AppColors.textDisabled,
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceSubtle,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.border),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.inbox_outlined,
+                size: 26,
+                color: AppColors.textMuted,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               emptyMessage,
-              style: AppTypography.secondary.copyWith(color: AppColors.textMuted),
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -80,9 +118,11 @@ class CustomDataTable extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
       ),
+      clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final totalWidth = columns.fold<double>(
@@ -132,7 +172,6 @@ class CustomDataTable extends ConsumerWidget {
                         border: Border(
                           bottom: BorderSide(color: AppColors.border),
                         ),
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
                       ),
                       child: Row(
                         children: columns.map((col) {
@@ -191,8 +230,8 @@ class _DataTableRow extends ConsumerWidget {
       onEnter: (_) => ref.read(tableHoveredRowProvider(rowIndex).notifier).state = true,
       onExit: (_) => ref.read(tableHoveredRowProvider(rowIndex).notifier).state = false,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         color: isHovered ? AppColors.surfaceVariant : AppColors.surface,
         child: Row(
           children: List.generate(columns.length, (colIndex) {

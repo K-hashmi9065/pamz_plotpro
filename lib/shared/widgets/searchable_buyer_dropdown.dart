@@ -18,8 +18,8 @@ class SearchableBuyerDropdown extends StatelessWidget {
     required this.selectedBuyerId,
     required this.onChanged,
     this.validator,
-    this.labelText = 'Buyer / Customer *',
-    this.hintText = 'Select or search buyer...',
+    this.labelText = 'Customer *',
+    this.hintText = 'Select or search customer...',
   });
 
   @override
@@ -144,7 +144,7 @@ class _BuyerSearchDialogState extends State<_BuyerSearchDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Select Buyer / Customer',
+                  'Select Customer',
                   style: AppTypography.cardTitle.copyWith(fontSize: 16),
                 ),
                 IconButton(
@@ -158,7 +158,7 @@ class _BuyerSearchDialogState extends State<_BuyerSearchDialog> {
               controller: _searchController,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Search buyer by name, phone, PAN...',
+                hintText: 'Search customer by name, phone, PAN...',
                 prefixIcon: const Icon(Icons.search, size: 18),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -177,7 +177,7 @@ class _BuyerSearchDialogState extends State<_BuyerSearchDialog> {
               child: _filteredBuyers.isEmpty
                   ? Center(
                       child: Text(
-                        'No matching buyers found.',
+                        'No matching customers found.',
                         style: AppTypography.secondary.copyWith(fontSize: 13),
                       ),
                     )

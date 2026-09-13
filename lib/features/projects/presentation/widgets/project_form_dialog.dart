@@ -263,13 +263,17 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
 
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Container(
         width: 680,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -330,7 +334,6 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
               // Form Scrollable Area
               Flexible(
                 child: SingleChildScrollView(
-                  clipBehavior: Clip.none,
                   padding: const EdgeInsets.only(top: 8, bottom: 8, left: 2, right: 2),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,53 +378,54 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                         builder: (context, ref, child) {
                           final landownersAsync = ref.watch(landownersListStreamProvider);
 
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: landownersAsync.when(
-                                  loading: () => const LinearProgressIndicator(),
-                                  error: (err, stack) => Text(
-                                    'Error loading landowners',
-                                    style: AppTypography.secondary.copyWith(color: AppColors.dangerText),
-                                  ),
-                                  data: (landowners) {
-                                    return ValueListenableBuilder<String?>(
-                                      valueListenable: _selectedLandownerIdNotifier,
-                                      builder: (context, selectedLandownerId, _) {
-                                        final isValidSelected = landowners.any((l) => l.id == selectedLandownerId);
-                                        final dropdownValue = isValidSelected ? selectedLandownerId : null;
+                          return IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: landownersAsync.when(
+                                    loading: () => const LinearProgressIndicator(),
+                                    error: (err, stack) => Text(
+                                      'Error loading landowners',
+                                      style: AppTypography.secondary.copyWith(color: AppColors.dangerText),
+                                    ),
+                                    data: (landowners) {
+                                      return ValueListenableBuilder<String?>(
+                                        valueListenable: _selectedLandownerIdNotifier,
+                                        builder: (context, selectedLandownerId, _) {
+                                          final isValidSelected = landowners.any((l) => l.id == selectedLandownerId);
+                                          final dropdownValue = isValidSelected ? selectedLandownerId : null;
 
-                                        return SearchableLandownerDropdown(
-                                          landowners: landowners,
-                                          selectedLandownerId: dropdownValue,
-                                          labelText: 'Landowner',
-                                          hintText: '-- Select Landowner --',
-                                          onChanged: (val) {
-                                            _selectedLandownerIdNotifier.value = val;
-                                          },
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton.icon(
-                                onPressed: _createNewLandowner,
-                                icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                                label: const Text('Create New Landowner'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size(0, 48),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
+                                          return SearchableLandownerDropdown(
+                                            landowners: landowners,
+                                            selectedLandownerId: dropdownValue,
+                                            labelText: 'Landowner',
+                                            hintText: '-- Select Landowner --',
+                                            onChanged: (val) {
+                                              _selectedLandownerIdNotifier.value = val;
+                                            },
+                                          );
+                                        },
+                                      );
+                                    },
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                ElevatedButton.icon(
+                                  onPressed: _createNewLandowner,
+                                  icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                                  label: const Text('Create New Landowner'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.accent,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       ),
@@ -554,8 +558,12 @@ class _ProjectFormDialogState extends ConsumerState<ProjectFormDialog> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.dangerText,
+                          side: const BorderSide(color: AppColors.dangerBorder),
+                        ),
                         onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+                        child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(

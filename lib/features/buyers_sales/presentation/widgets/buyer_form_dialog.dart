@@ -102,8 +102,8 @@ class _BuyerFormDialogState extends ConsumerState<BuyerFormDialog> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(widget.buyer != null
-                ? 'Buyer profile updated successfully!'
-                : 'Buyer registered successfully!'),
+                ? 'Customer profile updated successfully!'
+                : 'Customer registered successfully!'),
           ),
         );
       }
@@ -117,10 +117,11 @@ class _BuyerFormDialogState extends ConsumerState<BuyerFormDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
       child: Container(
         width: 500,
         padding: const EdgeInsets.all(24),
@@ -136,7 +137,7 @@ class _BuyerFormDialogState extends ConsumerState<BuyerFormDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(widget.buyer != null ? 'Edit Buyer Profile' : 'Register Buyer Profile', style: AppTypography.cardTitle),
+                      Text(widget.buyer != null ? 'Edit Customer Profile' : 'Register Customer Profile', style: AppTypography.cardTitle),
                       IconButton(
                         icon: const Icon(Icons.close, color: AppColors.textSecondary),
                         onPressed: isSaving ? null : () => Navigator.of(context).pop(),
@@ -163,11 +164,11 @@ class _BuyerFormDialogState extends ConsumerState<BuyerFormDialog> {
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: 'Buyer Full Name *',
+                      labelText: 'Customer Full Name *',
                       hintText: 'e.g. Vikram Sharma',
                     ),
                     validator: (val) => val == null || val.trim().isEmpty
-                        ? 'Buyer Name * is required'
+                        ? 'Customer Name * is required'
                         : null,
                   ),
                   const SizedBox(height: 14),
@@ -240,53 +241,59 @@ class _BuyerFormDialogState extends ConsumerState<BuyerFormDialog> {
                   Builder(
                     builder: (context) {
                       final projectsAsync = ref.watch(projectsListStreamProvider);
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: projectsAsync.when(
-                              data: (projects) => ValueListenableBuilder<String?>(
-                                valueListenable: _selectedProjectIdNotifier,
-                                builder: (context, selectedProjectId, _) {
-                                  return DropdownButtonFormField<String>(
-                                    initialValue: selectedProjectId,
-                                    isExpanded: true,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Associated Project (Optional)',
-                                      hintText: 'Select associated project...',
-                                    ),
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: null,
-                                        child: Text('None / All Projects'),
+                      return IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: projectsAsync.when(
+                                data: (projects) => ValueListenableBuilder<String?>(
+                                  valueListenable: _selectedProjectIdNotifier,
+                                  builder: (context, selectedProjectId, _) {
+                                    return DropdownButtonFormField<String>(
+                                      initialValue: selectedProjectId,
+                                      isExpanded: true,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Associated Project (Optional)',
+                                        hintText: 'Select associated project...',
                                       ),
-                                      ...projects.map((p) => DropdownMenuItem<String>(
-                                            value: p.id,
-                                            child: Text(
-                                              '${p.name} (${p.code})',
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          )),
-                                    ],
-                                    onChanged: (val) => _selectedProjectIdNotifier.value = val,
-                                  );
-                                },
+                                      items: [
+                                        const DropdownMenuItem<String>(
+                                          value: null,
+                                          child: Text('None / All Projects'),
+                                        ),
+                                        ...projects.map((p) => DropdownMenuItem<String>(
+                                              value: p.id,
+                                              child: Text(
+                                                '${p.name} (${p.code})',
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            )),
+                                      ],
+                                      onChanged: (val) => _selectedProjectIdNotifier.value = val,
+                                    );
+                                  },
+                                ),
+                                loading: () => const LinearProgressIndicator(),
+                                error: (err, s) => Text('Error loading projects: $err'),
                               ),
-                              loading: () => const LinearProgressIndicator(),
-                              error: (err, s) => Text('Error loading projects: $err'),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            const SizedBox(width: 10),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _createNewProject,
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('New Project', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             ),
-                            onPressed: _createNewProject,
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text(' New Project', style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -296,8 +303,12 @@ class _BuyerFormDialogState extends ConsumerState<BuyerFormDialog> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.dangerText,
+                          side: const BorderSide(color: AppColors.dangerBorder),
+                        ),
                         onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+                        child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
@@ -311,7 +322,7 @@ class _BuyerFormDialogState extends ConsumerState<BuyerFormDialog> {
                                   color: Colors.white,
                                 ),
                               )
-                            : Text(widget.buyer != null ? 'Save Changes' : 'Register Buyer'),
+                            : Text(widget.buyer != null ? 'Save Changes' : 'Register Customer'),
                       ),
                     ],
                   ),

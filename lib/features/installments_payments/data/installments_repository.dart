@@ -68,10 +68,26 @@ class InstallmentsRepository {
         final lo = row.readTableOrNull(_db.landowners);
         final project = row.readTableOrNull(_db.projects);
 
-        final statusEnum = InstallmentStatus.values.firstWhere(
-          (s) => s.name == inst.status,
+        InstallmentStatus statusEnum = InstallmentStatus.values.firstWhere(
+          (s) => s.name.toLowerCase() == inst.status.toLowerCase(),
           orElse: () => InstallmentStatus.pending,
         );
+
+        double effectiveDueAmount = inst.dueAmount;
+        if (pa != null && effectiveDueAmount < pa.totalPrice) {
+          effectiveDueAmount = pa.totalPrice;
+          if (inst.paidAmount >= effectiveDueAmount) {
+            statusEnum = InstallmentStatus.paid;
+          } else if (inst.paidAmount > 0) {
+            statusEnum = InstallmentStatus.partiallyPaid;
+          }
+
+          // Persist the correction back to SQLite database
+          _db.customStatement(
+            'UPDATE installments SET due_amount = ?, status = ? WHERE id = ?',
+            [effectiveDueAmount, statusEnum.name, inst.id],
+          );
+        }
 
         String? buyerName = buyer?.name ?? (lo != null ? '${lo.name} (Landowner)' : null);
         String? projectName = project != null ? '${project.name} (${project.code})' : null;
@@ -105,7 +121,7 @@ class InstallmentsRepository {
           purchaseAgreementId: inst.purchaseAgreementId,
           installmentNumber: inst.installmentNumber,
           dueDate: inst.dueDate,
-          dueAmount: inst.dueAmount,
+          dueAmount: effectiveDueAmount,
           paidAmount: inst.paidAmount,
           status: statusEnum,
           createdAt: inst.createdAt,
@@ -133,7 +149,7 @@ class InstallmentsRepository {
         final project = row.readTableOrNull(_db.projects);
 
         final statusEnum = InstallmentStatus.values.firstWhere(
-          (s) => s.name == inst.status,
+          (s) => s.name.toLowerCase() == inst.status.toLowerCase(),
           orElse: () => InstallmentStatus.pending,
         );
 
@@ -354,6 +370,86 @@ class InstallmentsRepository {
     }
 
     final transactionId = _uuid.v4();
+    String targetPurchaseAgreementId = purchaseAgreementId;
+
+    // 1. Verify and ensure purchase agreement exists in database
+    var agreement = await (_db.select(_db.purchaseAgreements)
+          ..where((tbl) => tbl.id.equals(targetPurchaseAgreementId)))
+        .getSingleOrNull();
+
+    if (agreement == null) {
+      // Check if project has an existing agreement
+      final existingPa = await (_db.select(_db.purchaseAgreements)
+            ..where((tbl) => tbl.projectId.equals(projectId))
+            ..limit(1))
+          .getSingleOrNull();
+
+      if (existingPa != null) {
+        agreement = existingPa;
+        targetPurchaseAgreementId = existingPa.id;
+      } else {
+        // Auto-create purchase agreement for this project
+        final project = await (_db.select(_db.projects)
+              ..where((tbl) => tbl.id.equals(projectId)))
+            .getSingleOrNull();
+
+        String? validLandownerId = project?.landownerId;
+
+        if (validLandownerId != null && validLandownerId.isNotEmpty) {
+          final lo = await (_db.select(_db.landowners)
+                ..where((tbl) => tbl.id.equals(validLandownerId!)))
+              .getSingleOrNull();
+          if (lo == null) validLandownerId = null;
+        }
+
+        if (validLandownerId == null) {
+          final anyLo = await (_db.select(_db.landowners)..limit(1)).getSingleOrNull();
+          if (anyLo != null) {
+            validLandownerId = anyLo.id;
+          } else {
+            validLandownerId = _uuid.v4();
+            await _db.into(_db.landowners).insert(
+                  LandownersCompanion(
+                    id: Value(validLandownerId),
+                    name: Value(
+                      landownerName?.trim().isNotEmpty == true
+                          ? landownerName!.trim()
+                          : 'Primary Landowner',
+                    ),
+                    phone: const Value('N/A'),
+                    createdAt: Value(DateTime.now()),
+                  ),
+                );
+          }
+        }
+
+        if (project != null && project.landownerId == null) {
+          await (_db.update(_db.projects)..where((tbl) => tbl.id.equals(projectId))).write(
+            ProjectsCompanion(landownerId: Value(validLandownerId)),
+          );
+        }
+
+        final newPaId = targetPurchaseAgreementId.isNotEmpty
+            ? targetPurchaseAgreementId
+            : _uuid.v4();
+        final double agreePrice =
+            (project != null && project.purchasePrice > 0) ? project.purchasePrice : amount;
+
+        await _db.into(_db.purchaseAgreements).insert(
+              PurchaseAgreementsCompanion(
+                id: Value(newPaId),
+                projectId: Value(projectId),
+                landownerId: Value(validLandownerId),
+                totalPrice: Value(agreePrice),
+                agreementDate: Value(project?.createdAt ?? DateTime.now()),
+                status: const Value('ACTIVE'),
+                createdAt: Value(DateTime.now()),
+              ),
+            );
+        targetPurchaseAgreementId = newPaId;
+      }
+    }
+
     String? targetInstallmentId = installmentId;
 
     if (targetInstallmentId != null && targetInstallmentId.isNotEmpty) {
@@ -378,7 +474,7 @@ class InstallmentsRepository {
       }
     } else {
       final paInstallments = await (_db.select(_db.installments)
-            ..where((tbl) => tbl.purchaseAgreementId.equals(purchaseAgreementId))
+            ..where((tbl) => tbl.purchaseAgreementId.equals(targetPurchaseAgreementId))
             ..orderBy([(tbl) => OrderingTerm.asc(tbl.installmentNumber)]))
           .get();
 
@@ -415,26 +511,38 @@ class InstallmentsRepository {
                 ..where((tbl) => tbl.id.equals(lastInst.id)))
               .getSingle())
               .paidAmount;
+          final totalNewPaid = currentPaid + remainingToDistribute;
           await (_db.update(_db.installments)
                 ..where((tbl) => tbl.id.equals(lastInst.id)))
               .write(
             InstallmentsCompanion(
-              paidAmount: Value(currentPaid + remainingToDistribute),
-              status: const Value('PAID'),
+              paidAmount: Value(totalNewPaid),
+              status: Value(
+                totalNewPaid >= lastInst.dueAmount
+                    ? InstallmentStatus.paid.name
+                    : InstallmentStatus.partiallyPaid.name,
+              ),
             ),
           );
         }
       } else {
         final newInstId = _uuid.v4();
+        final fullDue = (agreement != null && agreement.totalPrice > 0)
+            ? agreement.totalPrice
+            : amount;
+        final newStatus = amount >= fullDue
+            ? InstallmentStatus.paid
+            : InstallmentStatus.partiallyPaid;
+
         await _db.into(_db.installments).insert(
               InstallmentsCompanion(
                 id: Value(newInstId),
-                purchaseAgreementId: Value(purchaseAgreementId),
+                purchaseAgreementId: Value(targetPurchaseAgreementId),
                 installmentNumber: const Value(1),
                 dueDate: Value(paymentDate),
-                dueAmount: Value(amount),
+                dueAmount: Value(fullDue),
                 paidAmount: Value(amount),
-                status: const Value('PAID'),
+                status: Value(newStatus.name),
                 createdAt: Value(DateTime.now()),
               ),
             );
@@ -469,7 +577,7 @@ class InstallmentsRepository {
             userId: Value(userId),
             action: const Value('RECORD_LANDOWNER_PAYMENT'),
             entityType: const Value('PurchaseAgreement'),
-            entityId: Value(purchaseAgreementId),
+            entityId: Value(targetPurchaseAgreementId),
             details: Value(
               'Recorded land payment of ₹${amount % 1 == 0 ? amount.toInt() : amount.round()}$nameDisplay via ${paymentMethod.name}. Ref: ${referenceNumber?.trim() ?? "N/A"}',
             ),

@@ -24,8 +24,57 @@ abstract class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           side: BorderSide(color: AppColors.border, width: 1),
-          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderRadius: BorderRadius.all(Radius.circular(10)),
         ),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: AppColors.border, width: 1),
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: AppColors.surface,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: AppColors.border, width: 1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        textStyle: AppTypography.body.copyWith(fontSize: 13),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: AppShadows.card,
+        ),
+        textStyle: AppTypography.caption.copyWith(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        waitDuration: const Duration(milliseconds: 400),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.primary,
+        contentTextStyle: AppTypography.body.copyWith(color: Colors.white, fontSize: 13),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.hovered) || states.contains(WidgetState.dragged)) {
+            return AppColors.textMuted.withValues(alpha: 0.6);
+          }
+          return AppColors.borderStrong.withValues(alpha: 0.8);
+        }),
+        trackColor: WidgetStateProperty.all(Colors.transparent),
+        radius: const Radius.circular(8),
+        thickness: WidgetStateProperty.all(6),
+        thumbVisibility: WidgetStateProperty.all(false),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surface,
@@ -51,12 +100,14 @@ abstract class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         hintStyle: AppTypography.secondary.copyWith(
-          color: AppColors.textSecondary.withValues(alpha: 0.6),
+          color: AppColors.textMuted.withValues(alpha: 0.8),
+          fontSize: 13,
         ),
         labelStyle: AppTypography.body.copyWith(
           color: AppColors.textSecondary,
+          fontSize: 13,
         ),
         floatingLabelStyle: AppTypography.caption.copyWith(
           color: AppColors.accent,
@@ -64,23 +115,23 @@ abstract class AppTheme {
         ),
         floatingLabelBehavior: FloatingLabelBehavior.auto,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.danger),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
         ),
       ),
@@ -89,21 +140,21 @@ abstract class AppTheme {
           backgroundColor: AppColors.accent,
           foregroundColor: Colors.white,
           textStyle: AppTypography.button,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          textStyle: AppTypography.button.copyWith(color: AppColors.textPrimary),
-          side: const BorderSide(color: AppColors.border),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          foregroundColor: AppColors.dangerText,
+          textStyle: AppTypography.button.copyWith(color: AppColors.dangerText, fontWeight: FontWeight.w600),
+          side: const BorderSide(color: AppColors.dangerBorder),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
@@ -112,6 +163,9 @@ abstract class AppTheme {
           foregroundColor: AppColors.accent,
           textStyle: AppTypography.button.copyWith(color: AppColors.accent),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
         ),
       ),
     );

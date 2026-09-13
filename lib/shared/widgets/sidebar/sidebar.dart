@@ -20,7 +20,7 @@ class Sidebar extends ConsumerWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: isExpanded ? 240 : 72,
+      width: isExpanded ? 244 : 72,
       decoration: const BoxDecoration(
         color: AppColors.sidebarBackground,
         border: Border(
@@ -44,22 +44,80 @@ class Sidebar extends ConsumerWidget {
                 final showDetails = isExpanded && constraints.maxWidth > 100;
                 return Row(
                   children: [
-                    const Icon(
-                      Icons.landscape_rounded,
-                      color: AppColors.accent,
-                      size: 28,
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.landscape_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
                     if (showDetails) ...[
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          AppConstants.appName,
-                          style: AppTypography.cardTitle.copyWith(
-                            color: AppColors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    AppConstants.appName,
+                                    style: AppTypography.cardTitle.copyWith(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.2,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentLight,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Text(
+                                    'PRO',
+                                    style: AppTypography.badge.copyWith(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.accent,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              'Enterprise Real Estate',
+                              style: AppTypography.caption.copyWith(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -102,7 +160,7 @@ class Sidebar extends ConsumerWidget {
               borderRadius: BorderRadius.circular(8),
               hoverColor: AppColors.sidebarHover,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final showDetails = isExpanded && constraints.maxWidth > 100;
@@ -111,9 +169,9 @@ class Sidebar extends ConsumerWidget {
                           ? MainAxisAlignment.start
                           : MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                          Icons.menu_open_rounded,
-                          size: 20,
+                        Icon(
+                          isExpanded ? Icons.menu_open_rounded : Icons.menu_rounded,
+                          size: 19,
                           color: AppColors.textSecondary,
                         ),
                         if (showDetails) ...[
@@ -123,7 +181,7 @@ class Sidebar extends ConsumerWidget {
                               'Collapse Sidebar',
                               style: AppTypography.secondary.copyWith(
                                 color: AppColors.textSecondary,
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w500,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -161,17 +219,15 @@ class _NavTile extends ConsumerWidget {
 
     // Colors & Hover styling
     final textColor = isSelected
-        ? AppColors.sidebarActiveText
+        ? AppColors.accent
         : (isHovered ? AppColors.textPrimary : AppColors.sidebarText);
 
     final iconColor = isSelected
-        ? AppColors.sidebarActiveText
+        ? AppColors.accent
         : (isHovered ? AppColors.accent : AppColors.textSecondary);
 
     final tileBackground = isSelected
-        ? (isHovered
-            ? AppColors.sidebarActive.withValues(alpha: 0.85)
-            : AppColors.sidebarActive)
+        ? AppColors.accentLight
         : (isHovered ? AppColors.sidebarHover : Colors.transparent);
 
     return Padding(
@@ -184,19 +240,19 @@ class _NavTile extends ConsumerWidget {
           onTap: () => context.go(item.routePath),
           borderRadius: BorderRadius.circular(8),
           focusColor: AppColors.accent.withValues(alpha: 0.15),
-          hoverColor: Colors.transparent, // Handled by state
+          hoverColor: Colors.transparent,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            height: 40,
+            duration: const Duration(milliseconds: 140),
+            height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               color: tileBackground,
               borderRadius: BorderRadius.circular(8),
               border: isSelected
-                  ? Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1)
+                  ? Border.all(color: AppColors.accent.withValues(alpha: 0.25), width: 1)
                   : (isHovered
-                      ? Border.all(color: AppColors.accent.withValues(alpha: 0.15), width: 1)
-                      : null),
+                      ? Border.all(color: AppColors.border, width: 1)
+                      : Border.all(color: Colors.transparent, width: 1)),
             ),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -208,22 +264,9 @@ class _NavTile extends ConsumerWidget {
                         ? MainAxisAlignment.start
                         : MainAxisAlignment.center,
                     children: [
-                      // Subtle vertical active indicator line
-                      if (isSelected && showDetails) ...[
-                        Container(
-                          width: 3.5,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: AppColors.accent,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-
                       Icon(
                         item.icon,
-                        size: 20,
+                        size: 19,
                         color: iconColor,
                       ),
                       if (showDetails) ...[
@@ -233,11 +276,11 @@ class _NavTile extends ConsumerWidget {
                             item.title,
                             style: AppTypography.body.copyWith(
                               color: textColor,
-                              fontSize: 14,
-                              fontWeight: (isSelected || isHovered)
+                              fontSize: 13.5,
+                              fontWeight: isSelected
                                   ? FontWeight.w600
-                                  : FontWeight.w500,
-                              letterSpacing: 0.1,
+                                  : (isHovered ? FontWeight.w500 : FontWeight.w400),
+                              letterSpacing: -0.1,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),

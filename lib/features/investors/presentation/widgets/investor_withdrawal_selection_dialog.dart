@@ -273,9 +273,9 @@ class _InvestorWithdrawalSelectionDialogState extends State<InvestorWithdrawalSe
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accent,
+                  foregroundColor: AppColors.dangerText,
                 ),
-                child: const Text('Cancel'),
+                child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
               ),
             ),
           ],

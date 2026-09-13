@@ -33,17 +33,21 @@ class LandownerPaymentHistoryDialog extends ConsumerWidget {
       barrierDismissible: true,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.border),
         ),
         backgroundColor: AppColors.surface,
+        clipBehavior: Clip.antiAlias,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: SizedBox(
-          width: 920,
-          height: 680,
-          child: LandownerPaymentHistoryDialog(
-            purchaseAgreement: purchaseAgreement,
-            project: project,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            width: 920,
+            height: 680,
+            child: LandownerPaymentHistoryDialog(
+              purchaseAgreement: purchaseAgreement,
+              project: project,
+            ),
           ),
         ),
       ),
@@ -56,10 +60,38 @@ class LandownerPaymentHistoryDialog extends ConsumerWidget {
     final transactionsAsync = ref.watch(transactionsListStreamProvider);
 
     final allInstallments = installmentsAsync.value ?? [];
-    final paInstallments = allInstallments
+    final rawPaInstallments = allInstallments
         .where((i) => i.purchaseAgreementId == purchaseAgreement.id)
         .toList()
       ..sort((a, b) => a.installmentNumber.compareTo(b.installmentNumber));
+
+    // Ensure single agreement installments reflect the full purchase agreement due
+    final paInstallments = rawPaInstallments.map((inst) {
+      if (rawPaInstallments.length == 1 && inst.dueAmount < purchaseAgreement.totalPrice) {
+        final newDue = purchaseAgreement.totalPrice;
+        final newStatus = inst.paidAmount >= newDue
+            ? InstallmentStatus.paid
+            : (inst.paidAmount > 0
+                ? InstallmentStatus.partiallyPaid
+                : InstallmentStatus.pending);
+        return InstallmentModel(
+          id: inst.id,
+          projectId: inst.projectId,
+          saleId: inst.saleId,
+          purchaseAgreementId: inst.purchaseAgreementId,
+          installmentNumber: inst.installmentNumber,
+          dueDate: inst.dueDate,
+          dueAmount: newDue,
+          paidAmount: inst.paidAmount,
+          status: newStatus,
+          createdAt: inst.createdAt,
+          buyerName: inst.buyerName,
+          projectName: inst.projectName,
+          plotInfo: inst.plotInfo,
+        );
+      }
+      return inst;
+    }).toList();
 
     final installmentIds = paInstallments.map((i) => i.id).toSet();
 
@@ -297,7 +329,10 @@ class LandownerPaymentHistoryDialog extends ConsumerWidget {
                                   ),
                                 ),
                                 StatusBadge(
-                                  label: inst.status.name.toUpperCase(),
+                                  label: inst.status ==
+                                          InstallmentStatus.partiallyPaid
+                                      ? 'PARTIALLY PAID'
+                                      : inst.status.name.toUpperCase(),
                                   type: isPaid
                                       ? BadgeType.success
                                       : inst.status ==

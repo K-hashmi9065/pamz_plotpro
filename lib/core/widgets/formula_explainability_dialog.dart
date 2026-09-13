@@ -52,14 +52,20 @@ class FormulaExplainabilityDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       backgroundColor: AppColors.surface,
+      elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
       child: Container(
-        width: 540,
+        width: 560,
         padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppShadows.dialog,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,41 +74,47 @@ class FormulaExplainabilityDialog extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: AppColors.infoBg,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.infoBorder),
                   ),
+                  alignment: Alignment.center,
                   child: const Icon(
-                    Icons.info_outline,
+                    Icons.calculate_outlined,
                     color: AppColors.infoText,
-                    size: 20,
+                    size: 22,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'How is this calculated?',
-                        style: AppTypography.cardTitle,
+                        'Calculation Breakdown',
+                        style: AppTypography.cardTitle.copyWith(fontSize: 16, fontWeight: FontWeight.w700),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         figureTitle,
-                        style: AppTypography.secondary,
+                        style: AppTypography.secondary.copyWith(color: AppColors.textSecondary, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                  icon: const Icon(Icons.close, color: AppColors.textMuted, size: 20),
+                  hoverColor: AppColors.surfaceVariant,
+                  splashRadius: 18,
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Divider(),
+            const SizedBox(height: 16),
+            const Divider(color: AppColors.divider),
             const SizedBox(height: 16),
 
             // Section 1: Plain Words Formula
@@ -116,10 +128,10 @@ class FormulaExplainabilityDialog extends StatelessWidget {
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: AppColors.surfaceSubtle,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border),
               ),
               child: Text(
@@ -127,10 +139,11 @@ class FormulaExplainabilityDialog extends StatelessWidget {
                 style: AppTypography.body.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
+                  fontSize: 13.5,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
             // Section 2: One-line Definitions
             Text(
@@ -142,12 +155,15 @@ class FormulaExplainabilityDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             ...terms.map((term) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.arrow_right,
-                          size: 18, color: AppColors.accent),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.arrow_right_rounded,
+                            size: 18, color: AppColors.accent),
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: RichText(
@@ -190,14 +206,14 @@ class FormulaExplainabilityDialog extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ...terms.map((term) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.only(bottom: 6),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -231,8 +247,9 @@ class FormulaExplainabilityDialog extends StatelessWidget {
                       Text(
                         calculatedResultDisplay,
                         style: AppTypography.amountMedium.copyWith(
-                          color: AppColors.textPrimary,
+                          color: AppColors.accent,
                           fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
                     ],
@@ -248,10 +265,14 @@ class FormulaExplainabilityDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text('Close'),
+                child: const Text('Got it'),
               ),
             ),
           ],

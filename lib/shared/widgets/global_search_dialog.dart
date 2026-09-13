@@ -203,11 +203,11 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
         results.add(SearchResultItem(
           title: b.name,
           subtitle: 'Phone: ${b.phone}${b.email != null ? " • ${b.email}" : ""}',
-          categoryName: 'Buyers',
+          categoryName: 'Customers',
           category: SearchCategory.buyer,
           icon: Icons.person_outline,
           route: AppRoutes.buyersSales,
-          badgeText: 'Buyer',
+          badgeText: 'Customer',
           badgeColor: AppColors.infoText,
         ));
       }
@@ -256,7 +256,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
           (t.projectName != null && t.projectName!.toLowerCase().contains(q))) {
         results.add(SearchResultItem(
           title: 'Payment ${_currencyFormat.format(t.amount)} (${t.paymentMethod.name})',
-          subtitle: 'Ref: ${t.referenceNumber ?? "N/A"}${t.buyerName != null ? " • Buyer: ${t.buyerName}" : ""}',
+          subtitle: 'Ref: ${t.referenceNumber ?? "N/A"}${t.buyerName != null ? " • Customer: ${t.buyerName}" : ""}',
           categoryName: 'Transactions',
           category: SearchCategory.transaction,
           icon: Icons.payments_outlined,
@@ -580,62 +580,98 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
               ),
             ),
             ...items.map((item) {
-              return ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Icon(item.icon, size: 18, color: AppColors.textPrimary),
-                ),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: AppTypography.body.copyWith(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
+                    hoverColor: AppColors.surfaceVariant,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.go(item.route);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(item.icon, size: 17, color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.title,
+                                        style: AppTypography.body.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (item.badgeText != null) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: (item.badgeColor ?? AppColors.primary).withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: (item.badgeColor ?? AppColors.primary).withValues(alpha: 0.2),
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          item.badgeText!,
+                                          style: AppTypography.badge.copyWith(
+                                            fontSize: 10.5,
+                                            color: item.badgeColor ?? AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.subtitle,
+                                  style: AppTypography.secondary.copyWith(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
+                            color: AppColors.textDisabled,
+                          ),
+                        ],
                       ),
                     ),
-                    if (item.badgeText != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: (item.badgeColor ?? AppColors.primary).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          item.badgeText!,
-                          style: AppTypography.secondary.copyWith(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: item.badgeColor ?? AppColors.primary,
-                          ),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
-                subtitle: Text(
-                  item.subtitle,
-                  style: AppTypography.secondary.copyWith(fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 12,
-                  color: AppColors.textMuted,
-                ),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  context.go(item.route);
-                },
               );
             }),
-            const Divider(height: 16, color: AppColors.border),
+            const Divider(height: 12, color: AppColors.borderLight),
           ],
         );
       },

@@ -55,11 +55,16 @@ class LandMeasurementInputWidget extends StatefulWidget {
 
 class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget> {
   late final ValueNotifier<String> _unitNotifier;
+  late final ValueNotifier<String> _actualUnitNotifier;
   late final ValueNotifier<double> _sqFtNotifier;
+  late final ValueNotifier<double> _calculatedSqFtNotifier;
   late final ValueNotifier<bool> _dimensionModeNotifier;
 
   // Single Amount controller
   final _amountController = TextEditingController();
+
+  // Actual Registered Area (Optional manual paper area) controller
+  final _actualAreaController = TextEditingController();
 
   // Dimension (Length x Breadth in Ft & In) controllers & focus nodes
   final _lengthFtController = TextEditingController();
@@ -123,7 +128,12 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
     }
 
     _unitNotifier = ValueNotifier<String>(startUnit);
+    _actualUnitNotifier = ValueNotifier<String>(
+        _unitOptions.contains(widget.initialUnit) && widget.initialUnit != dimensionsUnit
+            ? widget.initialUnit
+            : 'Kattha');
     _sqFtNotifier = ValueNotifier<double>(0.0);
+    _calculatedSqFtNotifier = ValueNotifier<double>(0.0);
     _dimensionModeNotifier = ValueNotifier<bool>(startDimMode);
 
     double initialAmount = widget.initialDisplayArea ?? 0.0;
@@ -134,6 +144,12 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
     _amountController.text = initialAmount > 0
         ? (initialAmount == initialAmount.roundToDouble() ? initialAmount.toInt().toString() : initialAmount.toString())
         : '';
+
+    if (widget.initialDisplayArea != null && widget.initialDisplayArea! > 0 && startDimMode) {
+      _actualAreaController.text = widget.initialDisplayArea == widget.initialDisplayArea!.roundToDouble()
+          ? widget.initialDisplayArea!.toInt().toString()
+          : widget.initialDisplayArea!.toString();
+    }
 
     if (widget.initialLengthFt != null && widget.initialLengthFt! > 0) {
       final totalL = widget.initialLengthFt! + ((widget.initialLengthIn ?? 0.0) / 12.0);
@@ -169,9 +185,12 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
     _breadthInFocusNode.dispose();
 
     _unitNotifier.dispose();
+    _actualUnitNotifier.dispose();
     _sqFtNotifier.dispose();
+    _calculatedSqFtNotifier.dispose();
     _dimensionModeNotifier.dispose();
     _amountController.dispose();
+    _actualAreaController.dispose();
     _lengthFtController.dispose();
     _lengthInController.dispose();
     _breadthFtController.dispose();
@@ -247,6 +266,7 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
 
   void _recalculate({bool notifyParent = true}) {
     double sqFt = 0.0;
+    double calculatedSqFt = 0.0;
     double? displayArea;
 
     final currentUnit = _safeUnit(_unitNotifier.value);
@@ -258,22 +278,39 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
       final bFt = double.tryParse(_breadthFtController.text.trim()) ?? 0.0;
       final bIn = double.tryParse(_breadthInController.text.trim()) ?? 0.0;
 
-      sqFt = LandUnitConverter.dimensionsToSqFt(
+      calculatedSqFt = LandUnitConverter.dimensionsToSqFt(
         lengthFt: lFt,
         lengthIn: lIn,
         breadthFt: bFt,
         breadthIn: bIn,
       );
+      _calculatedSqFtNotifier.value = calculatedSqFt;
 
-      if (sqFt > 0) {
-        displayArea = LandUnitConverter.sqFtToUnitValue(sqFt, 'Kattha');
+      final actualText = _actualAreaController.text.trim();
+      final actualUnit = _actualUnitNotifier.value;
+      final enteredActualVal = double.tryParse(actualText);
+
+      if (enteredActualVal != null && enteredActualVal > 0) {
+        displayArea = enteredActualVal;
+        sqFt = LandUnitConverter.unitToSqFt(
+          unit: actualUnit,
+          displayArea: enteredActualVal,
+        );
+      } else {
+        sqFt = calculatedSqFt;
+        displayArea = null;
       }
     } else {
-      displayArea = double.tryParse(_amountController.text.trim()) ?? 0.0;
-      sqFt = LandUnitConverter.unitToSqFt(
-        unit: currentUnit,
-        displayArea: displayArea,
-      );
+      final text = _amountController.text.trim();
+      final parsed = double.tryParse(text);
+      displayArea = (parsed != null && parsed > 0) ? parsed : null;
+      sqFt = displayArea != null
+          ? LandUnitConverter.unitToSqFt(
+              unit: currentUnit,
+              displayArea: displayArea,
+            )
+          : 0.0;
+      _calculatedSqFtNotifier.value = 0.0;
     }
 
     _sqFtNotifier.value = sqFt;
@@ -284,9 +321,13 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
       final bFt = double.tryParse(_breadthFtController.text.trim());
       final bIn = double.tryParse(_breadthInController.text.trim());
 
+      final effectiveUnit = isDim
+          ? (_actualAreaController.text.trim().isNotEmpty ? _actualUnitNotifier.value : dimensionsUnit)
+          : currentUnit;
+
       widget.onAreaChanged?.call(sqFt);
       widget.onMeasurementDetailsChanged?.call(
-        measurementUnit: isDim ? dimensionsUnit : currentUnit,
+        measurementUnit: effectiveUnit,
         areaSqFt: sqFt,
         displayArea: displayArea,
         kattaValue: null,
@@ -533,6 +574,61 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+
+                        // Actual Registered Area (Optional) & Unit Dropdown
+                        ValueListenableBuilder<String>(
+                          valueListenable: _actualUnitNotifier,
+                          builder: (context, actualUnit, _) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: TextFormField(
+                                    controller: _actualAreaController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: InputDecoration(
+                                      labelText: 'Actual Registered Area (Optional)',
+                                      hintText: 'e.g. 10.5 or 12500',
+                                      suffixText: actualUnit,
+                                    ),
+                                    onChanged: (_) => _recalculate(),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: DropdownButtonFormField<String>(
+                                    initialValue: _unitOptions.contains(actualUnit) && actualUnit != dimensionsUnit
+                                        ? actualUnit
+                                        : 'Kattha',
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Area Unit',
+                                    ),
+                                    items: _unitOptions.where((u) => u != dimensionsUnit).map((unit) {
+                                      return DropdownMenuItem<String>(
+                                        value: unit,
+                                        child: Text(
+                                          unit,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        _actualUnitNotifier.value = val;
+                                        _recalculate();
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -602,39 +698,68 @@ class _LandMeasurementInputWidgetState extends State<LandMeasurementInputWidget>
                   ValueListenableBuilder<double>(
                     valueListenable: _sqFtNotifier,
                     builder: (context, computedSqFt, _) {
-                      if (computedSqFt <= 0) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.accent.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.square_foot, size: 18, color: AppColors.accent),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  isDimension
-                                      ? 'Auto-Calculated Area: ${LandUnitConverter.formatAllUnits(computedSqFt)}'
-                                      : 'Entered: ${LandUnitConverter.formatLandMeasurement(
-                                          areaSqFt: computedSqFt,
-                                          measurementUnit: activeUnit,
-                                          displayArea: double.tryParse(_amountController.text.trim()),
-                                        )}  •  Equivalent: ${LandUnitConverter.formatAllUnits(computedSqFt)}',
-                                  style: AppTypography.secondary.copyWith(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
+                      return ValueListenableBuilder<double>(
+                        valueListenable: _calculatedSqFtNotifier,
+                        builder: (context, computedCalcSqFt, _) {
+                          if (computedSqFt <= 0 && computedCalcSqFt <= 0) return const SizedBox.shrink();
+                          final bool isActualEntered = _actualAreaController.text.trim().isNotEmpty;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppColors.accent.withValues(alpha: 0.25)),
                               ),
-                            ],
-                          ),
-                        ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.square_foot, size: 18, color: AppColors.accent),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (isDimension && computedCalcSqFt > 0) ...[
+                                          Text(
+                                            'Calculated Area (L × B): ${LandUnitConverter.formatAllUnits(computedCalcSqFt)}',
+                                            style: AppTypography.secondary.copyWith(
+                                              color: AppColors.accent,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                        ],
+                                        Text(
+                                          isDimension
+                                              ? (isActualEntered
+                                                  ? 'Actual Registered Area: ${LandUnitConverter.formatLandMeasurement(
+                                                      areaSqFt: computedSqFt,
+                                                      measurementUnit: _actualUnitNotifier.value,
+                                                      displayArea: double.tryParse(_actualAreaController.text.trim()),
+                                                    )}  •  Equivalent: ${LandUnitConverter.formatAllUnits(computedSqFt)}'
+                                                  : 'Actual Registered Area: NA')
+                                              : 'Entered: ${LandUnitConverter.formatLandMeasurement(
+                                                  areaSqFt: computedSqFt,
+                                                  measurementUnit: activeUnit,
+                                                  displayArea: double.tryParse(_amountController.text.trim()),
+                                                )}  •  Equivalent: ${LandUnitConverter.formatAllUnits(computedSqFt)}',
+                                          style: AppTypography.secondary.copyWith(
+                                            color: AppColors.textPrimary,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),

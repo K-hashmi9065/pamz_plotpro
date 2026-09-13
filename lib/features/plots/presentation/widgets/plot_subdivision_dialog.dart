@@ -503,7 +503,7 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                             controller: _priceController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: const InputDecoration(
-                              labelText: 'Expected Plot Sale Price (Optional)',
+                              labelText: 'Plot Sell Price (Optional)',
                               hintText: 'e.g. 250000',
                               prefixText: '₹ ',
                             ),
@@ -592,8 +592,12 @@ class _PlotSubdivisionDialogState extends ConsumerState<PlotSubdivisionDialog> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.dangerText,
+                            side: const BorderSide(color: AppColors.dangerBorder),
+                          ),
                           onPressed: isSaving ? null : () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
+                          child: const Text('Cancel', style: TextStyle(color: AppColors.dangerText, fontWeight: FontWeight.w600)),
                         ),
                         const SizedBox(width: 12),
                         ValueListenableBuilder<int>(

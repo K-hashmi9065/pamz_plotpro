@@ -10,17 +10,19 @@ enum BadgeType {
   neutral,
 }
 
-/// Standard status badge paired with semantic color, background, text, and optional icon.
+/// Standard status badge paired with semantic color, background, border, text, and optional icon or indicator dot.
 class StatusBadge extends StatelessWidget {
   final String label;
   final BadgeType type;
   final IconData? icon;
+  final bool showDot;
 
   const StatusBadge({
     super.key,
     required this.label,
     required this.type,
     this.icon,
+    this.showDot = false,
   });
 
   Color get _bgColor {
@@ -35,6 +37,21 @@ class StatusBadge extends StatelessWidget {
         return AppColors.infoBg;
       case BadgeType.neutral:
         return AppColors.surfaceSubtle;
+    }
+  }
+
+  Color get _borderColor {
+    switch (type) {
+      case BadgeType.success:
+        return AppColors.successBorder;
+      case BadgeType.warning:
+        return AppColors.warningBorder;
+      case BadgeType.danger:
+        return AppColors.dangerBorder;
+      case BadgeType.info:
+        return AppColors.infoBorder;
+      case BadgeType.neutral:
+        return AppColors.border;
     }
   }
 
@@ -56,31 +73,42 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
         color: _bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderColor, width: 0.8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (icon != null) ...[
             Icon(
               icon,
-              size: 12,
+              size: 11,
               color: _textColor,
             ),
             const SizedBox(width: 4),
+          ] else if (showDot) ...[
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: _textColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 4.5),
           ],
           Flexible(
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
-              style: AppTypography.secondary.copyWith(
+              style: AppTypography.badge.copyWith(
                 color: _textColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+                fontSize: 11.5,
               ),
             ),
           ),
