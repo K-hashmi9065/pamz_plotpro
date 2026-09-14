@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/storage/hive_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
@@ -282,6 +283,7 @@ class InvestorAgreementPdfService {
     required DateTime agreementDate,
   }) async {
     final pdf = pw.Document();
+    final brandingTitle = HiveService.getPdfHeaderTitle();
     final formattedDate = DateFormat('dd MMMM yyyy').format(agreementDate);
 
     final totalKatta = LandUnitConverter.sqFtToKatta(projectLandAreaSqFt);
@@ -324,7 +326,7 @@ class InvestorAgreementPdfService {
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        AppConstants.appName,
+                        brandingTitle,
                         style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
                       ),
                     ],
@@ -439,7 +441,7 @@ class InvestorAgreementPdfService {
               pw.SizedBox(height: 16),
               pw.Center(
                 child: pw.Text(
-                  'Generated via ${AppConstants.appName} - Confidential Investor Document',
+                  'Generated via $brandingTitle - Confidential Investor Document',
                   style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                 ),
               ),

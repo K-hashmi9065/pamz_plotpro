@@ -4337,6 +4337,40 @@ class $PlotsTable extends Plots with TableInfo<$PlotsTable, Plot> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _brokerNameMeta = const VerificationMeta(
+    'brokerName',
+  );
+  @override
+  late final GeneratedColumn<String> brokerName = GeneratedColumn<String>(
+    'broker_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _brokerPhoneMeta = const VerificationMeta(
+    'brokerPhone',
+  );
+  @override
+  late final GeneratedColumn<String> brokerPhone = GeneratedColumn<String>(
+    'broker_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _brokerageChargeMeta = const VerificationMeta(
+    'brokerageCharge',
+  );
+  @override
+  late final GeneratedColumn<double> brokerageCharge = GeneratedColumn<double>(
+    'brokerage_charge',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4366,6 +4400,9 @@ class $PlotsTable extends Plots with TableInfo<$PlotsTable, Plot> {
     allocatedCost,
     expectedPrice,
     status,
+    brokerName,
+    brokerPhone,
+    brokerageCharge,
     createdAt,
   ];
   @override
@@ -4489,6 +4526,27 @@ class $PlotsTable extends Plots with TableInfo<$PlotsTable, Plot> {
     } else if (isInserting) {
       context.missing(_statusMeta);
     }
+    if (data.containsKey('broker_name')) {
+      context.handle(
+        _brokerNameMeta,
+        brokerName.isAcceptableOrUnknown(data['broker_name']!, _brokerNameMeta),
+      );
+    }
+    if (data.containsKey('broker_phone')) {
+      context.handle(
+        _brokerPhoneMeta,
+        brokerPhone.isAcceptableOrUnknown(data['broker_phone']!, _brokerPhoneMeta),
+      );
+    }
+    if (data.containsKey('brokerage_charge')) {
+      context.handle(
+        _brokerageChargeMeta,
+        brokerageCharge.isAcceptableOrUnknown(
+          data['brokerage_charge']!,
+          _brokerageChargeMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4564,6 +4622,18 @@ class $PlotsTable extends Plots with TableInfo<$PlotsTable, Plot> {
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      brokerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}broker_name'],
+      ),
+      brokerPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}broker_phone'],
+      ),
+      brokerageCharge: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}brokerage_charge'],
+      ) ?? 0.0,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4593,6 +4663,9 @@ class Plot extends DataClass implements Insertable<Plot> {
   final double allocatedCost;
   final double expectedPrice;
   final String status;
+  final String? brokerName;
+  final String? brokerPhone;
+  final double brokerageCharge;
   final DateTime createdAt;
   const Plot({
     required this.id,
@@ -4610,6 +4683,9 @@ class Plot extends DataClass implements Insertable<Plot> {
     required this.allocatedCost,
     required this.expectedPrice,
     required this.status,
+    this.brokerName,
+    this.brokerPhone,
+    this.brokerageCharge = 0.0,
     required this.createdAt,
   });
   @override
@@ -4644,6 +4720,13 @@ class Plot extends DataClass implements Insertable<Plot> {
     map['allocated_cost'] = Variable<double>(allocatedCost);
     map['expected_price'] = Variable<double>(expectedPrice);
     map['status'] = Variable<String>(status);
+    if (!nullToAbsent || brokerName != null) {
+      map['broker_name'] = Variable<String>(brokerName);
+    }
+    if (!nullToAbsent || brokerPhone != null) {
+      map['broker_phone'] = Variable<String>(brokerPhone);
+    }
+    map['brokerage_charge'] = Variable<double>(brokerageCharge);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -4679,6 +4762,13 @@ class Plot extends DataClass implements Insertable<Plot> {
       allocatedCost: Value(allocatedCost),
       expectedPrice: Value(expectedPrice),
       status: Value(status),
+      brokerName: brokerName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(brokerName),
+      brokerPhone: brokerPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(brokerPhone),
+      brokerageCharge: Value(brokerageCharge),
       createdAt: Value(createdAt),
     );
   }
@@ -4704,6 +4794,9 @@ class Plot extends DataClass implements Insertable<Plot> {
       allocatedCost: serializer.fromJson<double>(json['allocatedCost']),
       expectedPrice: serializer.fromJson<double>(json['expectedPrice']),
       status: serializer.fromJson<String>(json['status']),
+      brokerName: serializer.fromJson<String?>(json['brokerName']),
+      brokerPhone: serializer.fromJson<String?>(json['brokerPhone']),
+      brokerageCharge: serializer.fromJson<double?>(json['brokerageCharge']) ?? 0.0,
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -4726,6 +4819,9 @@ class Plot extends DataClass implements Insertable<Plot> {
       'allocatedCost': serializer.toJson<double>(allocatedCost),
       'expectedPrice': serializer.toJson<double>(expectedPrice),
       'status': serializer.toJson<String>(status),
+      'brokerName': serializer.toJson<String?>(brokerName),
+      'brokerPhone': serializer.toJson<String?>(brokerPhone),
+      'brokerageCharge': serializer.toJson<double>(brokerageCharge),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -4746,6 +4842,9 @@ class Plot extends DataClass implements Insertable<Plot> {
     double? allocatedCost,
     double? expectedPrice,
     String? status,
+    Value<String?> brokerName = const Value.absent(),
+    Value<String?> brokerPhone = const Value.absent(),
+    double? brokerageCharge,
     DateTime? createdAt,
   }) => Plot(
     id: id ?? this.id,
@@ -4763,6 +4862,9 @@ class Plot extends DataClass implements Insertable<Plot> {
     allocatedCost: allocatedCost ?? this.allocatedCost,
     expectedPrice: expectedPrice ?? this.expectedPrice,
     status: status ?? this.status,
+    brokerName: brokerName.present ? brokerName.value : this.brokerName,
+    brokerPhone: brokerPhone.present ? brokerPhone.value : this.brokerPhone,
+    brokerageCharge: brokerageCharge ?? this.brokerageCharge,
     createdAt: createdAt ?? this.createdAt,
   );
   Plot copyWithCompanion(PlotsCompanion data) {
@@ -4794,6 +4896,9 @@ class Plot extends DataClass implements Insertable<Plot> {
           ? data.expectedPrice.value
           : this.expectedPrice,
       status: data.status.present ? data.status.value : this.status,
+      brokerName: data.brokerName.present ? data.brokerName.value : this.brokerName,
+      brokerPhone: data.brokerPhone.present ? data.brokerPhone.value : this.brokerPhone,
+      brokerageCharge: data.brokerageCharge.present ? data.brokerageCharge.value : this.brokerageCharge,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -4816,6 +4921,9 @@ class Plot extends DataClass implements Insertable<Plot> {
           ..write('allocatedCost: $allocatedCost, ')
           ..write('expectedPrice: $expectedPrice, ')
           ..write('status: $status, ')
+          ..write('brokerName: $brokerName, ')
+          ..write('brokerPhone: $brokerPhone, ')
+          ..write('brokerageCharge: $brokerageCharge, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -4838,6 +4946,9 @@ class Plot extends DataClass implements Insertable<Plot> {
     allocatedCost,
     expectedPrice,
     status,
+    brokerName,
+    brokerPhone,
+    brokerageCharge,
     createdAt,
   );
   @override
@@ -4859,6 +4970,9 @@ class Plot extends DataClass implements Insertable<Plot> {
           other.allocatedCost == this.allocatedCost &&
           other.expectedPrice == this.expectedPrice &&
           other.status == this.status &&
+          other.brokerName == this.brokerName &&
+          other.brokerPhone == this.brokerPhone &&
+          other.brokerageCharge == this.brokerageCharge &&
           other.createdAt == this.createdAt);
 }
 
@@ -4878,6 +4992,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
   final Value<double> allocatedCost;
   final Value<double> expectedPrice;
   final Value<String> status;
+  final Value<String?> brokerName;
+  final Value<String?> brokerPhone;
+  final Value<double> brokerageCharge;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const PlotsCompanion({
@@ -4896,6 +5013,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
     this.allocatedCost = const Value.absent(),
     this.expectedPrice = const Value.absent(),
     this.status = const Value.absent(),
+    this.brokerName = const Value.absent(),
+    this.brokerPhone = const Value.absent(),
+    this.brokerageCharge = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -4915,6 +5035,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
     this.allocatedCost = const Value.absent(),
     this.expectedPrice = const Value.absent(),
     required String status,
+    this.brokerName = const Value.absent(),
+    this.brokerPhone = const Value.absent(),
+    this.brokerageCharge = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -4938,6 +5061,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
     Expression<double>? allocatedCost,
     Expression<double>? expectedPrice,
     Expression<String>? status,
+    Expression<String>? brokerName,
+    Expression<String>? brokerPhone,
+    Expression<double>? brokerageCharge,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -4957,6 +5083,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
       if (allocatedCost != null) 'allocated_cost': allocatedCost,
       if (expectedPrice != null) 'expected_price': expectedPrice,
       if (status != null) 'status': status,
+      if (brokerName != null) 'broker_name': brokerName,
+      if (brokerPhone != null) 'broker_phone': brokerPhone,
+      if (brokerageCharge != null) 'brokerage_charge': brokerageCharge,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4978,6 +5107,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
     Value<double>? allocatedCost,
     Value<double>? expectedPrice,
     Value<String>? status,
+    Value<String?>? brokerName,
+    Value<String?>? brokerPhone,
+    Value<double>? brokerageCharge,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -4997,6 +5129,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
       allocatedCost: allocatedCost ?? this.allocatedCost,
       expectedPrice: expectedPrice ?? this.expectedPrice,
       status: status ?? this.status,
+      brokerName: brokerName ?? this.brokerName,
+      brokerPhone: brokerPhone ?? this.brokerPhone,
+      brokerageCharge: brokerageCharge ?? this.brokerageCharge,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -5050,6 +5185,15 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (brokerName.present) {
+      map['broker_name'] = Variable<String>(brokerName.value);
+    }
+    if (brokerPhone.present) {
+      map['broker_phone'] = Variable<String>(brokerPhone.value);
+    }
+    if (brokerageCharge.present) {
+      map['brokerage_charge'] = Variable<double>(brokerageCharge.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5077,6 +5221,9 @@ class PlotsCompanion extends UpdateCompanion<Plot> {
           ..write('allocatedCost: $allocatedCost, ')
           ..write('expectedPrice: $expectedPrice, ')
           ..write('status: $status, ')
+          ..write('brokerName: $brokerName, ')
+          ..write('brokerPhone: $brokerPhone, ')
+          ..write('brokerageCharge: $brokerageCharge, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))

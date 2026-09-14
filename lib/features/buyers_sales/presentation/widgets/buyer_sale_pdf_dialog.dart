@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/storage/hive_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
@@ -231,6 +232,7 @@ class BuyerSalePdfService {
     required String projectLocation,
   }) async {
     final pdf = pw.Document();
+    final brandingTitle = HiveService.getPdfHeaderTitle();
     final formattedDate = DateFormat('dd MMMM yyyy').format(sale.saleDate);
     final formattedPrice = 'Rs. ${CalculationEngine.indianNumberFormat.format(sale.agreedPrice.round())}';
     final netProceeds = CalculationEngine.calculateNetSaleProceeds(
@@ -264,7 +266,7 @@ class BuyerSalePdfService {
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        AppConstants.appName,
+                        brandingTitle,
                         style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
                       ),
                     ],
@@ -370,7 +372,7 @@ class BuyerSalePdfService {
                       pw.Container(width: 160, height: 1, color: PdfColors.black),
                       pw.SizedBox(height: 4),
                       pw.Text('Authorized Developer Signature', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-                      pw.Text('Entity: ${AppConstants.appName}', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Entity: $brandingTitle', style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),
                 ],
@@ -378,7 +380,7 @@ class BuyerSalePdfService {
               pw.SizedBox(height: 16),
               pw.Center(
                 child: pw.Text(
-                  'Generated via ${AppConstants.appName} - Confidential',
+                  'Generated via $brandingTitle - Confidential',
                   style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                 ),
               ),
@@ -408,6 +410,7 @@ class BuyerSalePdfService {
     );
     final formattedNet = 'Rs. ${CalculationEngine.indianNumberFormat.format(netProceeds.round())}';
     final formattedDate = DateFormat('dd MMM yyyy').format(saleDate);
+    final brandingTitle = HiveService.getPdfHeaderTitle();
 
     final message = '''
 📜 *BUYER SALES AGREEMENT*
@@ -420,7 +423,7 @@ class BuyerSalePdfService {
 💰 *Agreed Sale Price:* $formattedPrice
 💵 *Net Sale Proceeds:* $formattedNet
 
-_Generated via ${AppConstants.appName}_
+_Generated via ${brandingTitle}_
 '''.trim();
 
     String cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');

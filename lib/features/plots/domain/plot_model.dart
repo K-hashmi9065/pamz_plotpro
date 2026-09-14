@@ -17,6 +17,9 @@ class PlotModel {
   final double allocatedCost;
   final double expectedPrice;
   final PlotStatus status;
+  final String? brokerName;
+  final String? brokerPhone;
+  final double brokerageCharge;
   final DateTime createdAt;
 
   const PlotModel({
@@ -35,6 +38,9 @@ class PlotModel {
     required this.allocatedCost,
     required this.expectedPrice,
     required this.status,
+    this.brokerName,
+    this.brokerPhone,
+    this.brokerageCharge = 0.0,
     required this.createdAt,
   });
 
@@ -45,6 +51,10 @@ class PlotModel {
 
   bool get isAvailable => !isRoad && status == PlotStatus.available;
   bool get isSold => !isRoad && status == PlotStatus.sold;
+  bool get hasBrokerage =>
+      (brokerName != null && brokerName!.trim().isNotEmpty) ||
+      (brokerPhone != null && brokerPhone!.trim().isNotEmpty) ||
+      brokerageCharge > 0;
 
   String get formattedLength {
     final ft = lengthFt ?? 0.0;
@@ -100,6 +110,9 @@ class PlotModel {
     double? allocatedCost,
     double? expectedPrice,
     PlotStatus? status,
+    String? brokerName,
+    String? brokerPhone,
+    double? brokerageCharge,
     DateTime? createdAt,
   }) {
     return PlotModel(
@@ -118,6 +131,9 @@ class PlotModel {
       allocatedCost: allocatedCost ?? this.allocatedCost,
       expectedPrice: expectedPrice ?? this.expectedPrice,
       status: status ?? this.status,
+      brokerName: brokerName ?? this.brokerName,
+      brokerPhone: brokerPhone ?? this.brokerPhone,
+      brokerageCharge: brokerageCharge ?? this.brokerageCharge,
       createdAt: createdAt ?? this.createdAt,
     );
   }

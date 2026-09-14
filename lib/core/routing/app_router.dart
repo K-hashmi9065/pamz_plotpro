@@ -286,6 +286,8 @@ String _memberDefaultRoute(String? memberType) {
       return AppRoutes.memberDashboardInvestor;
     case 'landowner':
       return AppRoutes.memberDashboardLandowner;
+    case 'ca':
+      return AppRoutes.dashboard;
     default:
       return AppRoutes.dashboard;
   }

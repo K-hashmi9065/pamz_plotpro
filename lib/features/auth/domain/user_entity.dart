@@ -42,6 +42,7 @@ class UserEntity {
   bool get isBuyer => memberType == MemberType.customerBuyer;
   bool get isInvestor => memberType == MemberType.investor;
   bool get isLandowner => memberType == MemberType.landowner;
+  bool get isCa => memberType == MemberType.ca;
 
   UserEntity copyWith({
     String? id,

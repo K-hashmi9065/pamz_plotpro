@@ -2,7 +2,8 @@
 enum MemberType {
   customerBuyer('Customer / Buyer', 'customerBuyer'),
   investor('Investor', 'investor'),
-  landowner('Landowner', 'landowner');
+  landowner('Landowner', 'landowner'),
+  ca('Chartered Accountant (CA)', 'ca');
 
   final String displayName;
   final String dbValue;
@@ -17,6 +18,8 @@ enum MemberType {
         return MemberType.investor;
       case 'landowner':
         return MemberType.landowner;
+      case 'ca':
+        return MemberType.ca;
       default:
         throw ArgumentError('Unknown MemberType: $value');
     }

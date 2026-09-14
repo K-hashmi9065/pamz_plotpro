@@ -51,6 +51,33 @@ abstract class CalculationEngine {
     return _round2((plotAreaSqFt / totalProjectAreaSqFt) * actualProjectCost);
   }
 
+  /// Area-wise division of Project Expenses across plots:
+  /// Allocated Project Expense = (Plot Area / Total Project Area) * Total Project Expense
+  static double calculatePlotAllocatedExpense({
+    required double plotAreaSqFt,
+    required double totalProjectAreaSqFt,
+    required double totalProjectExpense,
+  }) {
+    if (totalProjectAreaSqFt <= 0) return 0.0;
+    return _round2((plotAreaSqFt / totalProjectAreaSqFt) * totalProjectExpense);
+  }
+
+  /// Plot Total Expense = Area-wise Allocated Project Expense + Direct Plot Brokerage Charge
+  static double calculatePlotTotalExpense({
+    required double allocatedExpense,
+    required double brokerageCharge,
+  }) {
+    return _round2(allocatedExpense + brokerageCharge);
+  }
+
+  /// Plot Total Cost = Base Land Purchase Cost + Plot Total Expense
+  static double calculatePlotTotalCost({
+    required double basePurchaseCost,
+    required double plotTotalExpense,
+  }) {
+    return _round2(basePurchaseCost + plotTotalExpense);
+  }
+
   /// PRD §7.2: Plot Cost Allocation - Percentage-Based Method
   static double calculatePercentageBasedPlotCost({
     required double allocationPercentage,

@@ -14,11 +14,13 @@ import '../../../profit_loss_settlement/presentation/profit_loss_providers.dart'
 import '../../../profit_loss_settlement/presentation/widgets/payout_disbursement_dialog.dart';
 import '../../../projects/domain/project_model.dart';
 import '../../../projects/presentation/projects_providers.dart';
-import '../../domain/investor_model.dart';
 import '../../domain/project_investor_model.dart';
+import '../investors_providers.dart';
+import 'investor_agreement_pdf_dialog.dart';
 import 'investor_statement_pdf_dialog.dart';
+import 'project_investment_dialog.dart';
 
-class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
+class InvestorWithdrawalHistoryDialog extends ConsumerStatefulWidget {
   final ProjectInvestorModel projectInvestor;
   final String projectName;
   final String projectCode;
@@ -50,8 +52,8 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            width: 900,
-            height: 640,
+            width: 950,
+            height: 720,
             child: InvestorWithdrawalHistoryDialog(
               projectInvestor: projectInvestor,
               projectName: projectName,
@@ -61,6 +63,26 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  @override
+  ConsumerState<InvestorWithdrawalHistoryDialog> createState() => _InvestorWithdrawalHistoryDialogState();
+}
+
+class _InvestorWithdrawalHistoryDialogState extends ConsumerState<InvestorWithdrawalHistoryDialog>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   double _parseAmountFromLog(String details) {
@@ -81,12 +103,33 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final allProjectInvestors = ref.watch(
+      projectInvestorsStreamProvider(widget.projectInvestor.projectId),
+    ).value ?? [];
+
+    final contributions = allProjectInvestors
+        .where((pi) => pi.investorId == widget.projectInvestor.investorId)
+        .toList();
+    if (contributions.isEmpty) {
+      contributions.add(widget.projectInvestor);
+    }
+    contributions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    final double totalInvestedAmount = contributions.fold(0.0, (s, i) => s + i.investedAmount);
+    final double totalOwnershipPercent = contributions.fold(0.0, (s, i) => s + i.ownershipPercent);
+
+    final allPiIds = contributions.map((pi) => pi.id).toSet();
+    allPiIds.add(widget.projectInvestor.id);
+
     final allLogs = ref.watch(auditLogsStreamProvider).value ?? [];
     final withdrawalLogs = allLogs.where((l) {
       return l.action == 'DISBURSE_INVESTOR_PAYOUT' &&
-          (l.entityId == projectInvestor.id || l.details.contains(projectInvestor.id));
+          (allPiIds.contains(l.entityId) ||
+              allPiIds.any((id) => l.details.contains(id)) ||
+              l.details.contains(widget.projectInvestor.investorId));
     }).toList();
+    withdrawalLogs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
     final double totalWithdrawn = withdrawalLogs.fold(
       0.0,
@@ -95,10 +138,10 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
 
     final pnlList = ref.watch(projectProfitLossStreamProvider).value ?? [];
     final pnl = pnlList.firstWhere(
-      (p) => p.projectId == projectInvestor.projectId,
+      (p) => p.projectId == widget.projectInvestor.projectId,
       orElse: () => ProjectProfitLossModel(
-        projectId: projectInvestor.projectId,
-        projectName: projectName,
+        projectId: widget.projectInvestor.projectId,
+        projectName: widget.projectName,
         totalAgreedSales: 0,
         directSaleExpenses: 0,
         actualProjectCost: 0,
@@ -109,22 +152,31 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
     final double distributablePool = netProfitPool > 0 ? netProfitPool : 0.0;
     final double profitShare = CalculationEngine.calculateInvestorProfitShare(
       distributableProfit: distributablePool,
-      ownershipPercent: projectInvestor.ownershipPercent,
+      ownershipPercent: totalOwnershipPercent,
     );
-    final double totalAmount = projectInvestor.investedAmount + profitShare;
+    final double totalAmount = totalInvestedAmount + profitShare;
     final double remainingBalance =
         (totalAmount - totalWithdrawn).clamp(0.0, double.infinity);
 
     final payoutModel = InvestorPayoutModel(
-      id: projectInvestor.id,
-      investorId: projectInvestor.investorId,
-      investorName: projectInvestor.investorName,
-      projectId: projectInvestor.projectId,
-      capitalInvested: projectInvestor.investedAmount,
-      ownershipPercent: projectInvestor.ownershipPercent,
+      id: widget.projectInvestor.id,
+      investorId: widget.projectInvestor.investorId,
+      investorName: widget.projectInvestor.investorName,
+      projectId: widget.projectInvestor.projectId,
+      capitalInvested: totalInvestedAmount,
+      ownershipPercent: totalOwnershipPercent,
       distributableProfitPool: distributablePool,
       payoutsDisbursed: totalWithdrawn,
     );
+
+    final investorsList = ref.watch(investorsListStreamProvider).value ?? [];
+    final fullInvestor = investorsList
+        .where((i) => i.id == widget.projectInvestor.investorId)
+        .firstOrNull;
+    final projectsList = ref.watch(projectsListStreamProvider).value ?? [];
+    final fullProject = projectsList
+        .where((p) => p.id == widget.projectInvestor.projectId)
+        .firstOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -133,12 +185,12 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Withdrawal History: ${projectInvestor.investorName}',
+              'Investor History: ${widget.projectInvestor.investorName}',
               style: AppTypography.cardTitle,
             ),
             const SizedBox(height: 2),
             Text(
-              'Project: $projectName ($projectCode)',
+              'Project: ${widget.projectName} (${widget.projectCode})',
               style: AppTypography.secondary.copyWith(fontSize: 12),
             ),
           ],
@@ -153,38 +205,6 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: AppColors.accent),
             label: const Text('Share Statement PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             onPressed: () async {
-              final db = ref.read(appDatabaseProvider);
-              final prj = await (db.select(db.projects)
-                    ..where((p) => p.id.equals(projectInvestor.projectId)))
-                  .getSingleOrNull();
-              final inv = await (db.select(db.investors)
-                    ..where((i) => i.id.equals(projectInvestor.investorId)))
-                  .getSingleOrNull();
-
-              final rawPi = await (db.select(db.projectInvestors)
-                    ..where((pi) =>
-                        pi.investorId.equals(projectInvestor.investorId)))
-                  .get();
-              final allPi = rawPi
-                  .where((pi) => pi.projectId == projectInvestor.projectId)
-                  .toList();
-              final investments = allPi.map((pi) {
-                final method = OwnershipMethod.values.firstWhere(
-                  (m) => m.name == pi.ownershipMethod,
-                  orElse: () => OwnershipMethod.capitalBased,
-                );
-                return ProjectInvestorModel(
-                  id: pi.id,
-                  projectId: pi.projectId,
-                  investorId: pi.investorId,
-                  investorName: projectInvestor.investorName,
-                  investedAmount: pi.investedAmount,
-                  ownershipPercent: pi.ownershipPercent,
-                  ownershipMethod: method,
-                  createdAt: pi.createdAt,
-                );
-              }).toList();
-
               final withdrawals = withdrawalLogs.map((log) {
                 return InvestorWithdrawalRecord(
                   date: log.timestamp,
@@ -195,56 +215,45 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
               }).toList();
               withdrawals.sort((a, b) => b.date.compareTo(a.date));
 
-              final projectModel = prj != null
-                  ? ProjectModel(
-                      id: prj.id,
-                      name: prj.name,
-                      code: prj.code,
-                      location: prj.location,
-                      landAreaSqFt: prj.landAreaSqFt,
-                      purchasePrice: prj.purchasePrice,
-                      actualCost: prj.actualCost,
-                      status: ProjectStatus.values.firstWhere(
-                          (s) => s.name == prj.status,
-                          orElse: () => ProjectStatus.active),
-                      createdAt: prj.createdAt,
-                    )
-                  : ProjectModel(
-                      id: projectInvestor.projectId,
-                      name: projectName,
-                      code: projectCode,
-                      location: '',
-                      landAreaSqFt: 0,
-                      purchasePrice: 0,
-                      actualCost: 0,
-                      status: ProjectStatus.active,
-                      createdAt: DateTime.now(),
-                    );
-
-              final investorModel = inv != null
-                  ? InvestorModel(
-                      id: inv.id,
-                      name: inv.name,
-                      phone: inv.phone,
-                      email: inv.email,
-                      pan: inv.pan,
-                      createdAt: inv.createdAt,
-                    )
-                  : null;
+              final projectModel = fullProject ??
+                  ProjectModel(
+                    id: widget.projectInvestor.projectId,
+                    name: widget.projectName,
+                    code: widget.projectCode,
+                    location: '',
+                    landAreaSqFt: 0,
+                    purchasePrice: 0,
+                    actualCost: 0,
+                    status: ProjectStatus.active,
+                    createdAt: DateTime.now(),
+                  );
 
               if (context.mounted) {
                 InvestorStatementPdfDialog.show(
                   context,
                   project: projectModel,
-                  investor: investorModel,
-                  investorName: projectInvestor.investorName,
-                  ownershipPercent: projectInvestor.ownershipPercent,
-                  investments: investments,
+                  investor: fullInvestor,
+                  investorName: widget.projectInvestor.investorName,
+                  ownershipPercent: totalOwnershipPercent,
+                  investments: contributions,
                   withdrawals: withdrawals,
                   profitShare: profitShare,
                 );
               }
             },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            icon: const Icon(Icons.add_circle_outline, size: 16, color: AppColors.primary),
+            label: const Text('Add Capital Investment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            onPressed: () => ProjectInvestmentDialog.show(
+              context,
+              preselectedProjectId: widget.projectInvestor.projectId,
+              preselectedInvestorId: widget.projectInvestor.investorId,
+            ),
           ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
@@ -259,7 +268,7 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
                 payout: payoutModel,
               );
             },
-            icon: const Icon(Icons.add, size: 16),
+            icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
             label: const Text('Add Withdrawal'),
           ),
           const SizedBox(width: 12),
@@ -276,7 +285,7 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
                 Expanded(
                   child: _buildSummaryCard(
                     title: 'Contributed Capital',
-                    value: CalculationEngine.formatCurrency(projectInvestor.investedAmount),
+                    value: CalculationEngine.formatCurrency(totalInvestedAmount),
                     color: AppColors.textPrimary,
                     icon: Icons.account_balance_outlined,
                   ),
@@ -323,80 +332,207 @@ class InvestorWithdrawalHistoryDialog extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
-            Text(
-              'Withdrawal Transaction Records (${withdrawalLogs.length})',
-              style: AppTypography.sectionTitle,
-            ),
-            const SizedBox(height: 10),
-
-            Expanded(
-              child: withdrawalLogs.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 48,
-                            color: AppColors.textSecondary.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No withdrawals recorded for ${projectInvestor.investorName} yet.',
-                            style: AppTypography.secondary,
-                          ),
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              PayoutDisbursementDialog.show(
-                                context,
-                                payout: payoutModel,
-                              );
-                            },
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Record First Withdrawal'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : CustomDataTable(
-                      columns: const [
-                        DataTableColumn(label: 'Date & Time', width: 170),
-                        DataTableColumn(label: 'Withdrawal Amount', width: 160),
-                        DataTableColumn(label: 'Payment Reference', width: 180),
-                        DataTableColumn(label: 'Status', width: 130),
-                        DataTableColumn(label: 'Logged User', width: 120),
+            // Tab Bar for 2 History Views
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border, width: 1.5)),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                labelColor: AppColors.accent,
+                unselectedLabelColor: AppColors.textSecondary,
+                indicatorColor: AppColors.accent,
+                indicatorWeight: 3,
+                tabs: [
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.account_balance_wallet_outlined, size: 16),
+                        const SizedBox(width: 8),
+                        Text('Withdrawal History (${withdrawalLogs.length})', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ],
-                      rows: withdrawalLogs.map((log) {
-                        final amt = _parseAmountFromLog(log.details);
-                        final ref = _parseReferenceFromLog(log.details);
-                        final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(log.timestamp);
-
-                        return [
-                          Text(dateStr, style: AppTypography.tableCell),
-                          Text(
-                            CalculationEngine.formatCurrency(amt),
-                            style: AppTypography.amountMedium.copyWith(
-                              fontSize: 14,
-                              color: AppColors.warningText,
-                            ),
-                          ),
-                          Text(
-                            ref,
-                            style: AppTypography.tableCell.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const StatusBadge(
-                            label: 'DISBURSED',
-                            type: BadgeType.success,
-                          ),
-                          Text(log.userId, style: AppTypography.secondary),
-                        ];
-                      }).toList(),
                     ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.savings_outlined, size: 16),
+                        const SizedBox(width: 8),
+                        Text('Contribute History (${contributions.length})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Tab Views
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Tab 1: Withdrawal History View
+                  withdrawalLogs.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_outlined,
+                                size: 48,
+                                color: AppColors.textSecondary.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No withdrawals recorded for ${widget.projectInvestor.investorName} yet.',
+                                style: AppTypography.secondary,
+                              ),
+                              const SizedBox(height: 16),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  PayoutDisbursementDialog.show(
+                                    context,
+                                    payout: payoutModel,
+                                  );
+                                },
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Record First Withdrawal'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : CustomDataTable(
+                          columns: const [
+                            DataTableColumn(label: 'Date & Time', width: 170),
+                            DataTableColumn(label: 'Withdrawal Amount', width: 160),
+                            DataTableColumn(label: 'Payment Reference', width: 180),
+                            DataTableColumn(label: 'Status', width: 130),
+                            DataTableColumn(label: 'Logged User', width: 120),
+                          ],
+                          rows: withdrawalLogs.map((log) {
+                            final amt = _parseAmountFromLog(log.details);
+                            final ref = _parseReferenceFromLog(log.details);
+                            final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(log.timestamp);
+
+                            return [
+                              Text(dateStr, style: AppTypography.tableCell),
+                              Text(
+                                CalculationEngine.formatCurrency(amt),
+                                style: AppTypography.amountMedium.copyWith(
+                                  fontSize: 14,
+                                  color: AppColors.warningText,
+                                ),
+                              ),
+                              Text(
+                                ref,
+                                style: AppTypography.tableCell.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const StatusBadge(
+                                label: 'DISBURSED',
+                                type: BadgeType.success,
+                              ),
+                              Text(log.userId, style: AppTypography.secondary),
+                            ];
+                          }).toList(),
+                        ),
+
+                  // Tab 2: Contribute History View
+                  contributions.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.account_balance_outlined,
+                                size: 48,
+                                color: AppColors.textSecondary.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No capital contributions recorded for ${widget.projectInvestor.investorName} yet.',
+                                style: AppTypography.secondary,
+                              ),
+                              const SizedBox(height: 16),
+                              OutlinedButton.icon(
+                                onPressed: () => ProjectInvestmentDialog.show(
+                                  context,
+                                  preselectedProjectId: widget.projectInvestor.projectId,
+                                  preselectedInvestorId: widget.projectInvestor.investorId,
+                                ),
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Add Capital Investment'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : CustomDataTable(
+                          columns: const [
+                            DataTableColumn(label: 'Date & Time', width: 170),
+                            DataTableColumn(label: 'Contributed Capital', width: 160),
+                            DataTableColumn(label: 'Ownership %', width: 130),
+                            DataTableColumn(label: 'Method', width: 140),
+                            DataTableColumn(
+                              label: 'Agreement PDF',
+                              width: 140,
+                              alignment: Alignment.center,
+                            ),
+                          ],
+                          rows: contributions.map((c) {
+                            final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(c.createdAt);
+                            final methodLabel = c.ownershipMethod == OwnershipMethod.manual ? 'MANUAL' : 'CAPITAL BASED';
+
+                            return [
+                              Text(dateStr, style: AppTypography.tableCell),
+                              Text(
+                                CalculationEngine.formatCurrency(c.investedAmount),
+                                style: AppTypography.amountMedium.copyWith(fontSize: 14),
+                              ),
+                              Text(
+                                '${c.ownershipPercent.toStringAsFixed(2)}%',
+                                style: AppTypography.tableCell.copyWith(
+                                  color: AppColors.successText,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              StatusBadge(
+                                label: methodLabel,
+                                type: c.ownershipMethod == OwnershipMethod.manual ? BadgeType.warning : BadgeType.info,
+                              ),
+                              Center(
+                                child: IconButton(
+                                  icon: const Icon(Icons.picture_as_pdf, color: AppColors.accent, size: 18),
+                                  tooltip: 'Generate / View Agreement PDF for this contribution',
+                                  onPressed: () {
+                                    InvestorAgreementPdfDialog.show(
+                                      context,
+                                      investorName: widget.projectInvestor.investorName,
+                                      investorPhone: fullInvestor?.phone ?? '—',
+                                      investorPan: fullInvestor?.pan,
+                                      investorEmail: fullInvestor?.email,
+                                      projectName: fullProject?.name ?? widget.projectName,
+                                      projectCode: fullProject?.code ?? widget.projectCode,
+                                      projectLocation: fullProject?.location ?? '—',
+                                      projectLandAreaSqFt: fullProject?.landAreaSqFt ?? 0.0,
+                                      investedAmount: c.investedAmount,
+                                      ownershipPercent: c.ownershipPercent,
+                                      ownershipMethod: c.ownershipMethod,
+                                      agreementDate: c.createdAt,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ];
+                          }).toList(),
+                        ),
+                ],
+              ),
             ),
           ],
         ),

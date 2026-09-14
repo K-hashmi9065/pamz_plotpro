@@ -12,6 +12,18 @@ class HiveService {
   static Box? _settingsBox;
   static Box? _sessionBox;
 
+  static Box? get _effectiveSettingsBox {
+    if (_settingsBox != null && _settingsBox!.isOpen) return _settingsBox;
+    if (Hive.isBoxOpen(settingsBoxName)) return Hive.box(settingsBoxName);
+    return null;
+  }
+
+  static Box? get _effectiveSessionBox {
+    if (_sessionBox != null && _sessionBox!.isOpen) return _sessionBox;
+    if (Hive.isBoxOpen(sessionBoxName)) return Hive.box(sessionBoxName);
+    return null;
+  }
+
   static Future<void> init() async {
     final appSupportDir = await getApplicationSupportDirectory();
     final hiveDir = Directory(p.join(appSupportDir.path, AppConstants.appDataFolder, 'hive'));
@@ -31,44 +43,58 @@ class HiveService {
     required String role,
     String? memberType,
   }) async {
-    await _sessionBox?.put('userId', userId);
-    await _sessionBox?.put('username', username);
-    await _sessionBox?.put('role', role);
-    await _sessionBox?.put('memberType', memberType ?? '');
-    await _sessionBox?.put('loggedInAt', DateTime.now().toIso8601String());
+    await _effectiveSessionBox?.put('userId', userId);
+    await _effectiveSessionBox?.put('username', username);
+    await _effectiveSessionBox?.put('role', role);
+    await _effectiveSessionBox?.put('memberType', memberType ?? '');
+    await _effectiveSessionBox?.put('loggedInAt', DateTime.now().toIso8601String());
   }
 
 
   static Map<String, dynamic>? getUserSession() {
-    if (_sessionBox == null || !_sessionBox!.containsKey('userId')) {
+    final box = _effectiveSessionBox;
+    if (box == null || !box.containsKey('userId')) {
       return null;
     }
     return {
-      'userId': _sessionBox!.get('userId'),
-      'username': _sessionBox!.get('username'),
-      'role': _sessionBox!.get('role'),
-      'loggedInAt': _sessionBox!.get('loggedInAt'),
+      'userId': box.get('userId'),
+      'username': box.get('username'),
+      'role': box.get('role'),
+      'loggedInAt': box.get('loggedInAt'),
     };
   }
 
   static Future<void> clearUserSession() async {
-    await _sessionBox?.clear();
+    await _effectiveSessionBox?.clear();
   }
 
   // --- Preferences & UI State ---
   static Future<void> setSidebarExpanded(bool expanded) async {
-    await _settingsBox?.put('sidebarExpanded', expanded);
+    await _effectiveSettingsBox?.put('sidebarExpanded', expanded);
   }
 
   static bool getSidebarExpanded({bool defaultValue = true}) {
-    return _settingsBox?.get('sidebarExpanded', defaultValue: defaultValue) ?? defaultValue;
+    return _effectiveSettingsBox?.get('sidebarExpanded', defaultValue: defaultValue) ?? defaultValue;
   }
 
   static Future<void> setSelectedProjectFilter(String? projectId) async {
-    await _settingsBox?.put('selectedProjectId', projectId);
+    await _effectiveSettingsBox?.put('selectedProjectId', projectId);
   }
 
   static String? getSelectedProjectFilter() {
-    return _settingsBox?.get('selectedProjectId');
+    return _effectiveSettingsBox?.get('selectedProjectId');
+  }
+
+  // --- PDF Header Branding ---
+  static Future<void> setPdfHeaderTitle(String title) async {
+    await _effectiveSettingsBox?.put('pdfHeaderTitle', title.trim());
+  }
+
+  static String getPdfHeaderTitle({String defaultValue = 'PAMZ PlotPro'}) {
+    final val = _effectiveSettingsBox?.get('pdfHeaderTitle');
+    if (val != null && val.toString().trim().isNotEmpty) {
+      return val.toString().trim();
+    }
+    return defaultValue;
   }
 }

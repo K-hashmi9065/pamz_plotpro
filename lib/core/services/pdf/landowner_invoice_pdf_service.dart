@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../database/app_database.dart';
+import '../../storage/hive_service.dart';
 import '../../../features/landowners/domain/landowner_model.dart';
 import '../../../features/landowners/domain/purchase_agreement_model.dart';
 import '../../../features/projects/domain/project_model.dart';
@@ -75,6 +76,7 @@ class LandownerInvoicePdfService {
 
     final double landSqFt = project.landAreaSqFt;
     final double kattha = landSqFt / 1125.0;
+    final String brandingTitle = HiveService.getPdfHeaderTitle();
 
     pdf.addPage(
       pw.Page(
@@ -93,7 +95,7 @@ class LandownerInvoicePdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'PAMZ PlotPro',
+                        brandingTitle,
                         style: pw.TextStyle(
                           fontSize: 22,
                           fontWeight: pw.FontWeight.bold,
@@ -384,7 +386,7 @@ class LandownerInvoicePdfService {
               pw.Divider(thickness: 0.8, color: PdfColors.grey400),
               pw.SizedBox(height: 4),
               pw.Text(
-                'Official land purchase disbursement record. Confirmed and recorded by PAMZ PlotPro management pursuant to the executed land acquisition agreement.',
+                'Official land purchase disbursement record. Confirmed and recorded by $brandingTitle management pursuant to the executed land acquisition agreement.',
                 style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
               ),
               pw.SizedBox(height: 24),
@@ -406,7 +408,7 @@ class LandownerInvoicePdfService {
                       pw.Container(width: 160, height: 1, color: PdfColors.grey600),
                       pw.SizedBox(height: 4),
                       pw.Text('Authorized Signatory & Seal', style: const pw.TextStyle(fontSize: 8.5)),
-                      pw.Text('PAMZ PlotPro Management', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('$brandingTitle Management', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ],

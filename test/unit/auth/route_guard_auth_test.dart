@@ -157,10 +157,33 @@ void main() {
 
     // ── General routes for members ────────────────────────────────────────────
 
-    test('Member CANNOT access admin dashboard', () {
+    test('Standard member CANNOT access admin dashboard', () {
       expect(
         RouteGuard.isAllowed(
             UserRole.member, AppRoutes.dashboard, MemberType.customerBuyer),
+        isFalse,
+      );
+    });
+
+    test('CA member CAN access admin dashboard and operational routes', () {
+      expect(
+        RouteGuard.isAllowed(
+            UserRole.member, AppRoutes.dashboard, MemberType.ca),
+        isTrue,
+      );
+      expect(
+        RouteGuard.isAllowed(
+            UserRole.member, AppRoutes.projects, MemberType.ca),
+        isTrue,
+      );
+      expect(
+        RouteGuard.isAllowed(
+            UserRole.member, AppRoutes.profitLoss, MemberType.ca),
+        isTrue,
+      );
+      expect(
+        RouteGuard.isAllowed(
+            UserRole.member, AppRoutes.memberDashboardBuyer, MemberType.ca),
         isFalse,
       );
     });
@@ -180,6 +203,7 @@ void main() {
           MemberTypeX.fromDb('customerBuyer'), MemberType.customerBuyer);
       expect(MemberTypeX.fromDb('investor'), MemberType.investor);
       expect(MemberTypeX.fromDb('landowner'), MemberType.landowner);
+      expect(MemberTypeX.fromDb('ca'), MemberType.ca);
     });
 
     test('fromDb throws on unknown value', () {

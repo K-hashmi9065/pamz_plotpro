@@ -1,14 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/database/app_database.dart';
 import '../data/projects_repository.dart';
 import '../domain/project_model.dart';
 
-/// AppDatabase singleton provider
-final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
-  ref.onDispose(() => db.close());
-  return db;
-});
+export '../../../core/database/database_provider.dart';
+import '../../../core/database/database_provider.dart';
 
 /// ProjectsRepository provider
 final projectsRepositoryProvider = Provider<ProjectsRepository>((ref) {

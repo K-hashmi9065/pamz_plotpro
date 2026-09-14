@@ -13,8 +13,6 @@ import '../../../buyers_sales/domain/sale_model.dart';
 import '../../../buyers_sales/presentation/sales_providers.dart';
 import '../../../buyers_sales/presentation/widgets/customer_invoice_pdf_dialog.dart';
 import '../../../buyers_sales/presentation/widgets/sale_agreement_dialog.dart';
-import '../../../expenses/presentation/expenses_providers.dart';
-import '../../../expenses/presentation/widgets/expense_form_dialog.dart';
 import '../../../installments_payments/domain/installment_model.dart';
 import '../../../installments_payments/domain/transaction_model.dart';
 import '../../../installments_payments/presentation/installments_providers.dart';
@@ -22,6 +20,8 @@ import '../../../installments_payments/presentation/widgets/payment_record_dialo
 import '../../../projects/presentation/projects_providers.dart';
 import '../../domain/plot_model.dart';
 import '../plots_providers.dart';
+import 'add_brokerage_dialog.dart';
+import 'brokerage_info_dialog.dart';
 import 'plot_edit_dialog.dart';
 
 class PlotDetailsDialog extends ConsumerWidget {
@@ -115,7 +115,6 @@ class PlotDetailsDialog extends ConsumerWidget {
     final salesAsync = ref.watch(salesListStreamProvider);
     final installmentsAsync = ref.watch(installmentsListStreamProvider);
     final transactionsAsync = ref.watch(transactionsListStreamProvider);
-    final expensesAsync = ref.watch(projectExpensesStreamProvider(plot.projectId));
 
     final formattedDate = DateFormat('dd MMM yyyy').format(plot.createdAt);
 
@@ -149,7 +148,6 @@ class PlotDetailsDialog extends ConsumerWidget {
     final allSales = salesAsync.value ?? [];
     final allInstallments = installmentsAsync.value ?? [];
     final allTransactions = transactionsAsync.value ?? [];
-    final projectExpenses = expensesAsync.value ?? [];
     final allLogs = ref.watch(auditLogsStreamProvider).value ?? [];
 
     final bool isPlotSoldOrBooked = plot.status != PlotStatus.available &&
@@ -217,13 +215,35 @@ class PlotDetailsDialog extends ConsumerWidget {
 
     final double sellingPrice = matchedSale != null ? matchedSale.agreedPrice : plot.expectedPrice;
 
-    // Direct / Capitalized plot expenses
-    final double plotDirectExpenses = projectExpenses.where((e) {
-      final n = (e.notes ?? '').toLowerCase();
-      return n.contains('plot ${plot.plotNumber.toLowerCase()}') || n.contains(plot.plotNumber.toLowerCase());
-    }).fold(0.0, (sum, e) => sum + e.amount);
+    // Parent project calculations for area-wise allocated expense
+    final parentProject = (projectsAsync.value ?? []).where((p) => p.id == plot.projectId).firstOrNull;
+    final double totalProjectArea = (parentProject != null && parentProject.landAreaSqFt > 0)
+        ? parentProject.landAreaSqFt
+        : plot.areaSqFt;
+    final double basePurchaseCost = (parentProject != null && totalProjectArea > 0)
+        ? (plot.areaSqFt / totalProjectArea) * parentProject.purchasePrice
+        : 0.0;
 
-    final double actualPlotCost = plot.allocatedCost + plotDirectExpenses;
+    final projectPlots = (plotsAsync.value ?? []).where((p) => p.projectId == plot.projectId).toList();
+    final double totalProjectBrokerages = projectPlots.fold(0.0, (sum, p) => sum + p.brokerageCharge);
+    final double totalProjectCapitalizedExpenses = (parentProject != null)
+        ? (parentProject.actualCost - parentProject.purchasePrice).clamp(0.0, double.infinity)
+        : 0.0;
+    final double generalProjectExpenses = (totalProjectCapitalizedExpenses - totalProjectBrokerages).clamp(0.0, double.infinity);
+
+    final double allocatedProjectExpense = (totalProjectArea > 0)
+        ? CalculationEngine.calculatePlotAllocatedExpense(
+            plotAreaSqFt: plot.areaSqFt,
+            totalProjectAreaSqFt: totalProjectArea,
+            totalProjectExpense: generalProjectExpenses,
+          )
+        : 0.0;
+    final double plotTotalExpense = CalculationEngine.calculatePlotTotalExpense(
+      allocatedExpense: allocatedProjectExpense,
+      brokerageCharge: plot.brokerageCharge,
+    );
+
+    final double actualPlotCost = plot.allocatedCost;
 
     // Collect transactions & installments for this sale
     List<InstallmentModel> relevantInstallments = [];
@@ -350,13 +370,12 @@ class PlotDetailsDialog extends ConsumerWidget {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
-                        icon: const Icon(Icons.add, size: 15),
-                        label: const Text('Add Expense', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        icon: const Icon(Icons.handshake_outlined, size: 15),
+                        label: const Text('Add Brokerage Charge', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         onPressed: () {
-                          ExpenseFormDialog.show(
+                          AddBrokerageDialog.show(
                             context,
-                            preselectedProjectId: plot.projectId,
-                            preselectedPlotNumber: plot.plotNumber,
+                            plot,
                           );
                         },
                       ),
@@ -623,6 +642,65 @@ class PlotDetailsDialog extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
 
+                    // Plot Brokerage Charge Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.handshake_outlined, size: 16, color: AppColors.primary),
+                            const SizedBox(width: 6),
+                            Text('Plot Brokerage Charge:', style: AppTypography.body),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () => plot.hasBrokerage
+                                  ? BrokerageInfoDialog.show(context, plot)
+                                  : AddBrokerageDialog.show(context, plot),
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      plot.hasBrokerage ? Icons.info_outline : Icons.add,
+                                      size: 12,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      plot.hasBrokerage
+                                          ? 'Broker: ${plot.brokerName ?? "Assigned"}'
+                                          : ' Add Brokerage',
+                                      style: AppTypography.secondary.copyWith(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          plot.brokerageCharge > 0 ? CalculationEngine.formatCurrency(plot.brokerageCharge) : '₹0',
+                          style: AppTypography.amountMedium.copyWith(
+                            fontSize: 15,
+                            color: plot.brokerageCharge > 0 ? AppColors.primary : AppColors.textSecondary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
                     // Actual Cost Row with Formula Explainability
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -634,17 +712,27 @@ class PlotDetailsDialog extends ConsumerWidget {
                             FormulaInfoButton(
                               figureTitle: 'Plot Actual Cost (${plot.plotNumber})',
                               plainWordsFormula:
-                                  'Actual Cost = Allocated Land Cost + Direct Site Expenses',
+                                  'Total Cost = Base Land Cost + Plot Total Expense (Allocated Project Expense + Plot Brokerage)',
                               terms: [
                                 FormulaTermDefinition(
-                                  term: 'Allocated Land Cost',
-                                  definition: 'Proportionate cost allocated from master land purchase.',
-                                  valueDisplay: CalculationEngine.formatCurrency(plot.allocatedCost),
+                                  term: 'Base Land Purchase Cost',
+                                  definition: 'Proportionate base land purchase cost allocated by area.',
+                                  valueDisplay: CalculationEngine.formatCurrency(basePurchaseCost),
                                 ),
                                 FormulaTermDefinition(
-                                  term: 'Direct Plot Expenses',
-                                  definition: 'Site development, registry, or fencing expenses recorded for this plot.',
-                                  valueDisplay: CalculationEngine.formatCurrency(plotDirectExpenses),
+                                  term: 'Allocated Project Expense',
+                                  definition: 'Area-wise division of master project expenses across plots.',
+                                  valueDisplay: CalculationEngine.formatCurrency(allocatedProjectExpense),
+                                ),
+                                FormulaTermDefinition(
+                                  term: 'Direct Plot Brokerage Charge',
+                                  definition: 'Direct brokerage commission recorded for this plot.',
+                                  valueDisplay: CalculationEngine.formatCurrency(plot.brokerageCharge),
+                                ),
+                                FormulaTermDefinition(
+                                  term: 'Plot Total Expense',
+                                  definition: 'Allocated Project Expense + Direct Plot Brokerage Charge.',
+                                  valueDisplay: CalculationEngine.formatCurrency(plotTotalExpense),
                                 ),
                               ],
                               calculatedResultDisplay: CalculationEngine.formatCurrency(actualPlotCost),
@@ -1013,16 +1101,27 @@ class PlotDetailsDialog extends ConsumerWidget {
               ),
               const SizedBox(height: 20),
 
-              // Close Action Button
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              // Action Buttons Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.handshake_outlined, size: 16),
+                    label: Text(plot.hasBrokerage ? 'Edit Brokerage' : 'Add Brokerage Charge'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      AddBrokerageDialog.show(context, plot);
+                    },
                   ),
-                  child: const Text('Close'),
-                ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ],
               ),
             ],
           ),

@@ -266,6 +266,9 @@ class AuthRepositoryImpl implements AuthRepository {
                 phone: phone,
               ),
             );
+      case MemberType.ca:
+        // CA members are financial managers and don't map to customer/investor/landowner tables
+        return id;
     }
     return id;
   }

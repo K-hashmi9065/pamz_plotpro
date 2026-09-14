@@ -39,6 +39,9 @@ class PlotsRepository {
       allocatedCost: row.allocatedCost,
       expectedPrice: row.expectedPrice,
       status: statusEnum,
+      brokerName: row.brokerName,
+      brokerPhone: row.brokerPhone,
+      brokerageCharge: row.brokerageCharge,
       createdAt: row.createdAt,
     );
   }
@@ -235,6 +238,8 @@ class PlotsRepository {
   }
 
   /// Recalculate area-based cost allocation for all plots in a project (PRD §7.2 / AC-05.1)
+  /// General project expenses are divided area-wise pro-rata across all plots.
+  /// Brokerage charges are added strictly to their specific plot only.
   Future<void> recalculateProjectCostAllocation(String projectId) async {
     final project = await (_db.select(_db.projects)..where((tbl) => tbl.id.equals(projectId))).getSingleOrNull();
     if (project == null) return;
@@ -242,22 +247,41 @@ class PlotsRepository {
     final plotsList = await (_db.select(_db.plots)..where((tbl) => tbl.projectId.equals(projectId))).get();
     if (plotsList.isEmpty) return;
 
-    // Standard formula: Allocated Cost = (Plot Area / Total Project Land Area) * Actual Project Cost
     // Use project.landAreaSqFt (the entire acquired project land) so un-subdivided land is not erroneously dumped onto existing plots.
     final totalProjectArea = project.landAreaSqFt > 0
         ? project.landAreaSqFt
         : plotsList.fold<double>(0.0, (sum, p) => sum + p.areaSqFt);
 
+    // Retrieve all capitalized project expenses
+    final allProjectExpenses = await (_db.select(_db.expenses)
+          ..where((tbl) => tbl.projectId.equals(projectId) & tbl.isCapitalized.equals(true)))
+        .get();
+    final totalCapitalizedExpenses = allProjectExpenses.fold<double>(0.0, (sum, e) => sum + e.amount);
+
+    // Sum of all individual plot brokerage charges
+    final totalPlotBrokerages = plotsList.fold<double>(0.0, (sum, p) => sum + p.brokerageCharge);
+
+    // General project expenses (distributed pro-rata by area across all plots)
+    final generalProjectExpenses = (totalCapitalizedExpenses - totalPlotBrokerages).clamp(0.0, double.infinity);
+
     for (final plot in plotsList) {
-      final allocatedCost = CalculationEngine.calculateAreaBasedPlotCost(
-        plotAreaSqFt: plot.areaSqFt,
-        totalProjectAreaSqFt: totalProjectArea,
-        actualProjectCost: project.actualCost,
+      final baseLandCost = totalProjectArea > 0
+          ? (plot.areaSqFt / totalProjectArea) * project.purchasePrice
+          : 0.0;
+      final allocatedGeneralExpense = totalProjectArea > 0
+          ? (plot.areaSqFt / totalProjectArea) * generalProjectExpenses
+          : 0.0;
+      final plotTotalCost = CalculationEngine.calculatePlotTotalCost(
+        basePurchaseCost: baseLandCost,
+        plotTotalExpense: CalculationEngine.calculatePlotTotalExpense(
+          allocatedExpense: allocatedGeneralExpense,
+          brokerageCharge: plot.brokerageCharge,
+        ),
       );
 
       await (_db.update(_db.plots)..where((tbl) => tbl.id.equals(plot.id))).write(
         PlotsCompanion(
-          allocatedCost: Value(allocatedCost),
+          allocatedCost: Value(plotTotalCost),
         ),
       );
     }
@@ -334,5 +358,117 @@ class PlotsRepository {
             timestamp: Value(DateTime.now()),
           ),
         );
+  }
+
+  /// Record or update brokerage charge for a specific plot and log it in project expenses
+  Future<void> recordPlotBrokerage({
+    required String plotId,
+    required String brokerName,
+    required String brokerPhone,
+    required double brokerageCharge,
+    required String userId,
+  }) async {
+    final plot = await (_db.select(_db.plots)..where((tbl) => tbl.id.equals(plotId))).getSingleOrNull();
+    if (plot == null) {
+      throw ArgumentError('Plot not found.');
+    }
+    if (brokerageCharge <= 0) {
+      throw ArgumentError('Brokerage Charge must be greater than zero.');
+    }
+    if (brokerName.trim().isEmpty) {
+      throw ArgumentError('Broker Name is required.');
+    }
+
+    // 1. Update plot table with brokerage details
+    await (_db.update(_db.plots)..where((tbl) => tbl.id.equals(plotId))).write(
+      PlotsCompanion(
+        brokerName: Value(brokerName.trim()),
+        brokerPhone: Value(brokerPhone.trim()),
+        brokerageCharge: Value(brokerageCharge),
+      ),
+    );
+
+    // 2. Automatically record or update in Expenses table under the project as capitalized brokerage expense
+    final existingBrokerageExpenses = await (_db.select(_db.expenses)
+          ..where((tbl) =>
+              tbl.projectId.equals(plot.projectId) &
+              tbl.category.equals(ExpenseCategory.brokerage.name)))
+        .get();
+
+    final matchExpense = existingBrokerageExpenses.where((e) {
+      return (e.notes != null && e.notes!.contains('Plot #${plot.plotNumber}')) ||
+          (e.vendor != null && e.vendor!.trim() == brokerName.trim());
+    }).firstOrNull;
+
+    if (matchExpense != null) {
+      await (_db.update(_db.expenses)..where((tbl) => tbl.id.equals(matchExpense.id))).write(
+        ExpensesCompanion(
+          amount: Value(brokerageCharge),
+          vendor: Value(brokerName.trim().isNotEmpty ? brokerName.trim() : null),
+          notes: Value(
+            'Brokerage charge for Plot #${plot.plotNumber}${brokerPhone.trim().isNotEmpty ? ' (Mobile: ${brokerPhone.trim()})' : ''}',
+          ),
+          isCapitalized: const Value(true),
+        ),
+      );
+    } else {
+      final expenseId = _uuid.v4();
+      await _db.into(_db.expenses).insert(
+        ExpensesCompanion(
+          id: Value(expenseId),
+          projectId: Value(plot.projectId),
+          category: Value(ExpenseCategory.brokerage.name),
+          amount: Value(brokerageCharge),
+          expenseDate: Value(DateTime.now()),
+          vendor: Value(brokerName.trim().isNotEmpty ? brokerName.trim() : null),
+          isCapitalized: const Value(true),
+          notes: Value(
+            'Brokerage charge for Plot #${plot.plotNumber}${brokerPhone.trim().isNotEmpty ? ' (Mobile: ${brokerPhone.trim()})' : ''}',
+          ),
+          createdAt: Value(DateTime.now()),
+        ),
+      );
+    }
+
+    // 3. Recalculate Actual Project Cost and area-based cost allocation
+    final allProjectExpenses = await (_db.select(_db.expenses)
+          ..where((tbl) => tbl.projectId.equals(plot.projectId)))
+        .get();
+    final capitalizedList = allProjectExpenses
+        .where((e) => e.isCapitalized)
+        .map((e) => e.amount)
+        .toList();
+
+    final project = await (_db.select(_db.projects)
+          ..where((tbl) => tbl.id.equals(plot.projectId)))
+        .getSingleOrNull();
+    if (project != null) {
+      final newActualCost = CalculationEngine.calculateActualProjectCost(
+        purchasePrice: project.purchasePrice,
+        capitalizedExpenses: capitalizedList,
+      );
+
+      await (_db.update(_db.projects)..where((tbl) => tbl.id.equals(plot.projectId))).write(
+        ProjectsCompanion(
+          actualCost: Value(newActualCost),
+        ),
+      );
+      await recalculateProjectCostAllocation(plot.projectId);
+    }
+
+    // 4. Audit Log
+    await _db.into(_db.auditLogs).insert(
+      AuditLogsCompanion(
+        id: Value(_uuid.v4()),
+        userId: Value(userId),
+        action: const Value('RECORD_BROKERAGE_CHARGE'),
+        entityType: const Value('Plot'),
+        entityId: Value(plotId),
+        details: Value(
+          'Recorded Brokerage Charge ₹$brokerageCharge for Plot #${plot.plotNumber} with Broker $brokerName ($brokerPhone). Isolated to this plot.',
+        ),
+        timestamp: Value(DateTime.now()),
+      ),
+    );
   }
 }

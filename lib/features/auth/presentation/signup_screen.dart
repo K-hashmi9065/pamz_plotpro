@@ -560,6 +560,8 @@ class MemberTypeDropdown extends StatelessWidget {
         return Icons.pie_chart_outline;
       case MemberType.landowner:
         return Icons.landscape_outlined;
+      case MemberType.ca:
+        return Icons.account_balance_outlined;
     }
   }
 }

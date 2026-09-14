@@ -113,13 +113,20 @@ abstract class NavItemsData {
           icon: Icons.landscape_outlined,
           routePath: '/my/landowner',
         );
+      case MemberType.ca:
+        return const NavItem(
+          id: 'dashboard',
+          title: 'Dashboard',
+          icon: Icons.dashboard_outlined,
+          routePath: '/dashboard',
+        );
     }
   }
 
   /// Returns filtered nav items based on user role and member type.
   static List<NavItem> getNavItemsForRole(UserRole role,
       [MemberType? memberType]) {
-    if (role.isAdmin) {
+    if (role.isAdmin || memberType == MemberType.ca) {
       return allNavItems;
     }
     // Member — show only their personal dashboard

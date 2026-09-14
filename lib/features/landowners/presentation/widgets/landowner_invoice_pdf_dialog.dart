@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/database/database_provider.dart';
 import '../../../../core/services/pdf/landowner_invoice_pdf_service.dart';
+import '../../../../core/storage/hive_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
@@ -13,7 +15,7 @@ import '../../../projects/domain/project_model.dart';
 import '../../domain/landowner_model.dart';
 import '../../domain/purchase_agreement_model.dart';
 
-class LandownerInvoicePdfDialog extends StatefulWidget {
+class LandownerInvoicePdfDialog extends ConsumerStatefulWidget {
   final ProjectModel project;
   final PurchaseAgreementModel agreement;
   final LandownerModel? landowner;
@@ -63,11 +65,12 @@ class LandownerInvoicePdfDialog extends StatefulWidget {
   }
 
   @override
-  State<LandownerInvoicePdfDialog> createState() =>
+  ConsumerState<LandownerInvoicePdfDialog> createState() =>
       _LandownerInvoicePdfDialogState();
 }
 
-class _LandownerInvoicePdfDialogState extends State<LandownerInvoicePdfDialog> {
+class _LandownerInvoicePdfDialogState
+    extends ConsumerState<LandownerInvoicePdfDialog> {
   final ValueNotifier<Uint8List?> _pdfBytesNotifier =
       ValueNotifier<Uint8List?>(null);
   final ValueNotifier<bool> _isGeneratingNotifier = ValueNotifier<bool>(true);
@@ -89,7 +92,7 @@ class _LandownerInvoicePdfDialogState extends State<LandownerInvoicePdfDialog> {
     LandownerModel? landowner = widget.landowner;
     final landownerId = widget.project.landownerId ?? widget.agreement.landownerId;
     if (landowner == null || landowner.phone.isEmpty) {
-      final db = AppDatabase();
+      final db = ref.read(appDatabaseProvider);
       final lRow = await (db.select(db.landowners)..where((l) => l.id.equals(landownerId))).getSingleOrNull();
       if (lRow != null) {
         landowner = LandownerModel(
@@ -165,9 +168,10 @@ class _LandownerInvoicePdfDialogState extends State<LandownerInvoicePdfDialog> {
 
     final totalPaid = widget.transactions.fold(0.0, (s, t) => s + t.amount);
     final dues = (widget.agreement.totalPrice - totalPaid).clamp(0.0, double.infinity);
+    final brandingTitle = HiveService.getPdfHeaderTitle();
 
     final message = '''
-🧾 *PAMZ PlotPro - LANDOWNER PAYMENT STATEMENT*
+🧾 *$brandingTitle - LANDOWNER PAYMENT STATEMENT*
 ---------------------------------------
 👤 *Landowner:* $landownerName
 📞 *Phone:* $phone
@@ -177,7 +181,7 @@ class _LandownerInvoicePdfDialogState extends State<LandownerInvoicePdfDialog> {
 ⚠️ *Remaining Dues:* ${CalculationEngine.formatCurrency(dues)}
 📊 *Total Payment Records:* ${widget.transactions.length}
 
-_Generated via ${AppConstants.appName}_
+_Generated via ${brandingTitle}_
 '''.trim();
 
     String cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');

@@ -1,11 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/constants/app_constants.dart';
-import '../../../../core/database/app_database.dart';
+import '../../../../core/database/database_provider.dart';
 import '../../../../core/services/pdf/investor_statement_pdf_service.dart';
+import '../../../../core/storage/hive_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
@@ -13,7 +14,7 @@ import '../../../projects/domain/project_model.dart';
 import '../../domain/investor_model.dart';
 import '../../domain/project_investor_model.dart';
 
-class InvestorStatementPdfDialog extends StatefulWidget {
+class InvestorStatementPdfDialog extends ConsumerStatefulWidget {
   final ProjectModel project;
   final InvestorModel? investor;
   final String investorName;
@@ -75,12 +76,12 @@ class InvestorStatementPdfDialog extends StatefulWidget {
   }
 
   @override
-  State<InvestorStatementPdfDialog> createState() =>
+  ConsumerState<InvestorStatementPdfDialog> createState() =>
       _InvestorStatementPdfDialogState();
 }
 
 class _InvestorStatementPdfDialogState
-    extends State<InvestorStatementPdfDialog> {
+    extends ConsumerState<InvestorStatementPdfDialog> {
   final ValueNotifier<Uint8List?> _pdfBytesNotifier =
       ValueNotifier<Uint8List?>(null);
   final ValueNotifier<bool> _isGeneratingNotifier = ValueNotifier<bool>(true);
@@ -101,7 +102,7 @@ class _InvestorStatementPdfDialogState
   Future<void> _generatePdf() async {
     InvestorModel? investor = widget.investor;
     if ((investor == null || investor.phone.isEmpty) && widget.investments.isNotEmpty) {
-      final db = AppDatabase();
+      final db = ref.read(appDatabaseProvider);
       final iRow = await (db.select(db.investors)..where((i) => i.id.equals(widget.investments.first.investorId))).getSingleOrNull();
       if (iRow != null) {
         investor = InvestorModel(
@@ -180,9 +181,10 @@ class _InvestorStatementPdfDialogState
         widget.withdrawals.fold(0.0, (s, w) => s + w.amount);
     final remaining = (totalInvested + widget.profitShare - totalWithdrawn)
         .clamp(0.0, double.infinity);
+    final brandingTitle = HiveService.getPdfHeaderTitle();
 
     final message = '''
-🧾 *PAMZ PlotPro - INVESTOR STATEMENT*
+🧾 *$brandingTitle - INVESTOR STATEMENT*
 ---------------------------------------
 👤 *Investor:* ${widget.investorName}
 📞 *Phone:* $phone
@@ -192,7 +194,7 @@ class _InvestorStatementPdfDialogState
 💸 *Total Withdrawn / Payouts:* ${CalculationEngine.formatCurrency(totalWithdrawn)}
 📈 *Remaining Balance:* ${CalculationEngine.formatCurrency(remaining)}
 
-_Generated via ${AppConstants.appName}_
+_Generated via ${brandingTitle}_
 '''.trim();
 
     String cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');

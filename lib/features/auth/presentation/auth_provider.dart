@@ -1,19 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/database/app_database.dart';
 import '../../../core/storage/hive_service.dart';
 import '../data/auth_repository_impl.dart';
 import '../domain/auth_repository.dart';
 import '../domain/member_type.dart';
 import '../domain/user_entity.dart';
 
-// ── Database Provider ────────────────────────────────────────────────────────
-
-final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
-  ref.onDispose(db.close);
-  return db;
-});
+export '../../../core/database/database_provider.dart';
+import '../../../core/database/database_provider.dart';
 
 // ── Repository Provider ──────────────────────────────────────────────────────
 

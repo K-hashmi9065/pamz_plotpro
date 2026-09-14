@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../database/app_database.dart';
+import '../../storage/hive_service.dart';
 import '../../../features/plots/domain/plot_model.dart';
 import '../../../features/buyers_sales/domain/buyer_model.dart';
 import '../../../features/buyers_sales/domain/sale_model.dart';
@@ -81,6 +82,7 @@ class CustomerInvoicePdfService {
     final String plotNumbers = plots.isNotEmpty
         ? plots.map((p) => p.plotNumber).join(', ')
         : 'Whole Land / Project Unit';
+    final String brandingTitle = HiveService.getPdfHeaderTitle();
 
     pdf.addPage(
       pw.Page(
@@ -99,7 +101,7 @@ class CustomerInvoicePdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'PAMZ PlotPro',
+                        brandingTitle,
                         style: pw.TextStyle(
                           fontSize: 22,
                           fontWeight: pw.FontWeight.bold,
@@ -408,7 +410,7 @@ class CustomerInvoicePdfService {
                       pw.Container(width: 160, height: 1, color: PdfColors.grey600),
                       pw.SizedBox(height: 4),
                       pw.Text('Authorized Signatory & Seal', style: const pw.TextStyle(fontSize: 8.5)),
-                      pw.Text('PAMZ PlotPro Management', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('$brandingTitle Management', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ],

@@ -10,9 +10,10 @@ import '../../../shared/providers/navigation_providers.dart';
 import '../../../shared/widgets/page/custom_data_table.dart';
 import '../../../shared/widgets/page/page_header.dart';
 import '../../../shared/widgets/page/status_badge.dart';
-import '../../expenses/presentation/widgets/expense_form_dialog.dart';
 import '../../projects/presentation/projects_providers.dart';
 import 'plots_providers.dart';
+import 'widgets/add_brokerage_dialog.dart';
+import 'widgets/brokerage_info_dialog.dart';
 import 'widgets/plot_details_dialog.dart';
 import 'widgets/plot_edit_dialog.dart';
 import 'widgets/plot_subdivision_dialog.dart';
@@ -349,13 +350,14 @@ class PlotsListScreen extends ConsumerWidget {
 
               return CustomDataTable(
                 columns: const [
-                  DataTableColumn(label: 'Plot Number', width: 130),
-                  DataTableColumn(label: 'Plot Area', width: 130),
+                  DataTableColumn(label: 'Plot Number', width: 120),
+                  DataTableColumn(label: 'Plot Area', width: 120),
+                  DataTableColumn(label: 'Brokerage Charge', width: 150),
                   DataTableColumn(label: 'Total Cost (Land + Exp.)', width: 180),
-                  DataTableColumn(label: 'Sell Price', width: 140),
-                  DataTableColumn(label: 'Profit / Loss', width: 150),
-                  DataTableColumn(label: 'Status', width: 130),
-                  DataTableColumn(label: 'Actions', width: 165, alignment: Alignment.center),
+                  DataTableColumn(label: 'Sell Price', width: 130),
+                  DataTableColumn(label: 'Profit / Loss', width: 140),
+                  DataTableColumn(label: 'Status', width: 120),
+                  DataTableColumn(label: 'Actions', width: 180, alignment: Alignment.center),
                 ],
                 rows: filtered.map((plot) {
                   final profitLoss = plot.expectedPrice - plot.allocatedCost;
@@ -379,6 +381,35 @@ class PlotsListScreen extends ConsumerWidget {
                       plot.formattedArea,
                       style: AppTypography.tableCell,
                     ),
+                    plot.isRoad
+                        ? Text('—', style: AppTypography.secondary)
+                        : InkWell(
+                            onTap: () => plot.hasBrokerage
+                                ? BrokerageInfoDialog.show(context, plot)
+                                : AddBrokerageDialog.show(context, plot),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.handshake_outlined,
+                                  size: 15,
+                                  color: plot.hasBrokerage ? AppColors.primary : AppColors.textSecondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  plot.brokerageCharge > 0
+                                      ? CalculationEngine.formatCurrency(plot.brokerageCharge)
+                                      : 'Add Brokerage',
+                                  style: AppTypography.tableCell.copyWith(
+                                    color: plot.hasBrokerage ? AppColors.primary : AppColors.textSecondary,
+                                    fontWeight: plot.hasBrokerage ? FontWeight.w600 : FontWeight.normal,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                     Row(
                       children: [
                         Text(
@@ -391,27 +422,53 @@ class PlotsListScreen extends ConsumerWidget {
                             final projectsList = projectsAsync.value ?? [];
                             final prj = projectsList.where((p) => p.id == plot.projectId).firstOrNull;
                             final totalArea = (prj != null && prj.landAreaSqFt > 0) ? prj.landAreaSqFt : plot.areaSqFt;
-                            final totalCost = prj?.actualCost ?? plot.allocatedCost;
+                            final double basePurchase = (prj != null && totalArea > 0)
+                                ? (plot.areaSqFt / totalArea) * prj.purchasePrice
+                                : 0.0;
+                            final double totalExpenses = (prj != null)
+                                ? (prj.actualCost - prj.purchasePrice).clamp(0.0, double.infinity)
+                                : 0.0;
+                            final double allocatedExpense = (totalArea > 0)
+                                ? CalculationEngine.calculatePlotAllocatedExpense(
+                                    plotAreaSqFt: plot.areaSqFt,
+                                    totalProjectAreaSqFt: totalArea,
+                                    totalProjectExpense: totalExpenses,
+                                  )
+                                : 0.0;
+                            final double plotTotalExpense = CalculationEngine.calculatePlotTotalExpense(
+                              allocatedExpense: allocatedExpense,
+                              brokerageCharge: plot.brokerageCharge,
+                            );
 
                             return FormulaInfoButton(
-                              figureTitle: 'Plot Cost Allocation (${plot.plotNumber})',
+                              figureTitle: 'Plot Cost & Expense Allocation (${plot.plotNumber})',
                               plainWordsFormula:
-                                  'Total Plot Cost = (Plot Area / Total Project Land Area) * (Land Purchase Price + Expenses)',
+                                  'Total Plot Cost = Base Land Cost + Area-wise Allocated Expenses + Direct Brokerage',
                               terms: [
                                 FormulaTermDefinition(
                                   term: 'Plot Area',
                                   definition: 'Area of this specific plot in square feet.',
-                                  valueDisplay: '${plot.areaSqFt.round()} sq.ft',
+                                  valueDisplay: '${plot.areaSqFt.round()} sq.ft (${plot.formattedArea})',
                                 ),
                                 FormulaTermDefinition(
-                                  term: 'Total Project Land Area',
-                                  definition: 'Total land area of the parent project.',
-                                  valueDisplay: '${totalArea.round()} sq.ft',
+                                  term: 'Base Land Purchase Cost',
+                                  definition: 'Proportionate base land acquisition cost allocated by area.',
+                                  valueDisplay: CalculationEngine.formatCurrency(basePurchase),
                                 ),
                                 FormulaTermDefinition(
-                                  term: 'Total Project Cost (Land + Exp.)',
-                                  definition: 'Master land purchase price plus all capitalized project expenses.',
-                                  valueDisplay: CalculationEngine.formatCurrency(totalCost),
+                                  term: 'Allocated Project Expense',
+                                  definition: 'Area-wise division of master project expenses across plots.',
+                                  valueDisplay: CalculationEngine.formatCurrency(allocatedExpense),
+                                ),
+                                FormulaTermDefinition(
+                                  term: 'Plot Brokerage Charge',
+                                  definition: 'Direct brokerage commission recorded for this plot.',
+                                  valueDisplay: CalculationEngine.formatCurrency(plot.brokerageCharge),
+                                ),
+                                FormulaTermDefinition(
+                                  term: 'Plot Total Expense',
+                                  definition: 'Allocated Project Expense + Direct Plot Brokerage Charge.',
+                                  valueDisplay: CalculationEngine.formatCurrency(plotTotalExpense),
                                 ),
                               ],
                               calculatedResultDisplay:
@@ -457,12 +514,11 @@ class PlotsListScreen extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.add_card_outlined, size: 17, color: AppColors.accent),
-                          tooltip: 'Add Plot Expense',
-                          onPressed: () => ExpenseFormDialog.show(
+                          icon: const Icon(Icons.handshake_outlined, size: 17, color: AppColors.accent),
+                          tooltip: 'Add Brokerage Charge',
+                          onPressed: () => AddBrokerageDialog.show(
                             context,
-                            preselectedProjectId: plot.projectId,
-                            preselectedPlotNumber: plot.plotNumber,
+                            plot,
                           ),
                         ),
                         if (currentRole.isAdmin)

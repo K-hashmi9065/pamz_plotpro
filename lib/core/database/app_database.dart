@@ -140,6 +140,9 @@ class Plots extends Table {
   RealColumn get allocatedCost => real().withDefault(const Constant(0.0))();
   RealColumn get expectedPrice => real().withDefault(const Constant(0.0))();
   TextColumn get status => text()(); // PlotStatus enum string
+  TextColumn get brokerName => text().nullable()();
+  TextColumn get brokerPhone => text().nullable()();
+  RealColumn get brokerageCharge => real().withDefault(const Constant(0.0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
@@ -257,7 +260,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -297,6 +300,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(users, users.salt);
             await m.addColumn(users, users.memberType);
             await m.addColumn(users, users.linkedEntityId);
+          }
+          if (from < 7) {
+            await m.addColumn(plots, plots.brokerName);
+            await m.addColumn(plots, plots.brokerPhone);
+            await m.addColumn(plots, plots.brokerageCharge);
           }
         },
         beforeOpen: (details) async {

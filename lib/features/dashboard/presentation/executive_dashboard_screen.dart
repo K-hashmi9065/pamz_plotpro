@@ -45,6 +45,7 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
             actions: [
               // Date Range Filter Dropdown
               Container(
+                height: 38,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
@@ -53,6 +54,7 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<DashboardDateRange>(
+                    isDense: true,
                     value: selectedDateRange,
                     items: DashboardDateRange.values.map((range) {
                       return DropdownMenuItem<DashboardDateRange>(
@@ -84,6 +86,7 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                   final validSelectedProject = projects.any((p) => p.id == selectedProjectId) ? selectedProjectId : null;
 
                   return Container(
+                    height: 38,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
@@ -92,6 +95,7 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String?>(
+                        isDense: true,
                         value: validSelectedProject,
                         hint: Text('All Portfolio Projects', style: AppTypography.input.copyWith(fontSize: 13)),
                         items: [
@@ -117,18 +121,21 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
               const SizedBox(width: 10),
               // Add Member Button (Admin only)
               if (currentRole.isAdmin)
-                FilledButton.icon(
-                  onPressed: () => AddMemberDialog.show(context),
-                  icon: const Icon(Icons.person_add_outlined, size: 16),
-                  label: const Text('Add Member'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 0),
-                    minimumSize: const Size(0, 36),
+                SizedBox(
+                  height: 38,
+                  child: FilledButton.icon(
+                    onPressed: () => AddMemberDialog.show(context),
+                    icon: const Icon(Icons.person_add_outlined, size: 16),
+                    label: const Text('Add Member'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 0),
+                      minimumSize: const Size(0, 38),
+                    ),
                   ),
                 ),
             ],
@@ -265,19 +272,25 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                                       Row(
                                         children: [
                                           Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () => ProjectFormDialog.show(context),
-                                              icon: const Icon(Icons.add_business, size: 18),
-                                              label: const Text('Add Project'),
+                                            child: SizedBox(
+                                              height: 48,
+                                              child: ElevatedButton.icon(
+                                                onPressed: () => ProjectFormDialog.show(context),
+                                                icon: const Icon(Icons.add_business, size: 18),
+                                                label: const Text('Add Project'),
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
-                                            child: ElevatedButton.icon(
-                                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
-                                              onPressed: () => SaleAgreementDialog.show(context),
-                                              icon: const Icon(Icons.handshake_outlined, size: 18),
-                                              label: const Text('New Sale Agreement'),
+                                            child: SizedBox(
+                                              height: 48,
+                                              child: ElevatedButton.icon(
+                                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                                                onPressed: () => SaleAgreementDialog.show(context),
+                                                icon: const Icon(Icons.handshake_outlined, size: 18),
+                                                label: const Text('New Sale Agreement'),
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -286,18 +299,24 @@ class ExecutiveDashboardScreen extends ConsumerWidget {
                                       Row(
                                         children: [
                                           Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () => PaymentRecordDialog.show(context),
-                                              icon: const Icon(Icons.add_card, size: 18),
-                                              label: const Text('Record Payment'),
+                                            child: SizedBox(
+                                              height: 48,
+                                              child: OutlinedButton.icon(
+                                                onPressed: () => PaymentRecordDialog.show(context),
+                                                icon: const Icon(Icons.add_card, size: 18),
+                                                label: const Text('Record Payment'),
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
-                                            child: OutlinedButton.icon(
-                                              onPressed: () => context.go(AppRoutes.profitLoss),
-                                              icon: const Icon(Icons.trending_up, size: 18),
-                                              label: const Text('View P&L Ledger'),
+                                            child: SizedBox(
+                                              height: 48,
+                                              child: OutlinedButton.icon(
+                                                onPressed: () => context.go(AppRoutes.profitLoss),
+                                                icon: const Icon(Icons.trending_up, size: 18),
+                                                label: const Text('View P&L Ledger'),
+                                              ),
                                             ),
                                           ),
                                         ],

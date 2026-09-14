@@ -33,6 +33,8 @@ import '../../landowners/presentation/widgets/agreement_pdf_dialog.dart';
 import '../../landowners/presentation/widgets/landowner_payment_dialog.dart';
 import '../../landowners/presentation/widgets/landowner_payment_history_dialog.dart';
 import '../../plots/presentation/plots_providers.dart';
+import '../../plots/presentation/widgets/add_brokerage_dialog.dart';
+import '../../plots/presentation/widgets/brokerage_info_dialog.dart';
 import '../../plots/presentation/widgets/plot_details_dialog.dart';
 import '../../plots/presentation/widgets/plot_subdivision_dialog.dart';
 import '../../plots/presentation/widgets/road_creation_dialog.dart';
@@ -42,6 +44,7 @@ import '../../profit_loss_settlement/presentation/widgets/payout_disbursement_di
 import '../domain/project_model.dart';
 import 'projects_providers.dart';
 import 'widgets/project_form_dialog.dart';
+import 'widgets/project_overview_pdf_dialog.dart';
 
 final projectDetailTabProvider = StateProvider.autoDispose.family<int, String>(
   (ref, projectId) => 0,
@@ -656,9 +659,41 @@ class _OverviewTab extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Project Master Information & Land Breakdown',
-              style: AppTypography.sectionTitle,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Project Master Information & Land Breakdown',
+                    style: AppTypography.sectionTitle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.picture_as_pdf, size: 18),
+                  label: const Text(
+                    'Export / Share PDF',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    ProjectOverviewPdfDialog.show(
+                      context,
+                      project: project,
+                      plots: plotsAsync.valueOrNull ?? [],
+                      expenses: expensesAsync.valueOrNull ?? [],
+                      pnlList: pnlListAsync.valueOrNull ?? [],
+                    );
+                  },
+                ),
+              ],
             ),
             const Divider(),
             const SizedBox(height: 12),
@@ -1024,15 +1059,16 @@ class _PlotsTab extends ConsumerWidget {
             data: (plots) {
               return CustomDataTable(
                 columns: const [
-                  DataTableColumn(label: 'Plot No.', width: 130),
-                  DataTableColumn(label: 'Plot Area', width: 130),
+                  DataTableColumn(label: 'Plot No.', width: 120),
+                  DataTableColumn(label: 'Plot Area', width: 120),
+                  DataTableColumn(label: 'Brokerage Charge', width: 150),
                   DataTableColumn(label: 'Total Cost (Land + Exp.)', width: 175),
-                  DataTableColumn(label: 'Sell Price', width: 140),
-                  DataTableColumn(label: 'Profit / Loss', width: 150),
-                  DataTableColumn(label: 'Status', width: 130),
+                  DataTableColumn(label: 'Sell Price', width: 130),
+                  DataTableColumn(label: 'Profit / Loss', width: 140),
+                  DataTableColumn(label: 'Status', width: 120),
                   DataTableColumn(
                     label: 'Actions',
-                    width: 120,
+                    width: 140,
                     alignment: Alignment.center,
                   ),
                 ],
@@ -1055,6 +1091,35 @@ class _PlotsTab extends ConsumerWidget {
                       ),
                     ),
                     Text(p.formattedArea, style: AppTypography.tableCell),
+                    p.isRoad
+                        ? Text('—', style: AppTypography.secondary)
+                        : InkWell(
+                            onTap: () => p.hasBrokerage
+                                ? BrokerageInfoDialog.show(context, p)
+                                : AddBrokerageDialog.show(context, p),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.handshake_outlined,
+                                  size: 15,
+                                  color: p.hasBrokerage ? AppColors.primary : AppColors.textSecondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  p.brokerageCharge > 0
+                                      ? CalculationEngine.formatCurrency(p.brokerageCharge)
+                                      : 'Add Brokerage',
+                                  style: AppTypography.tableCell.copyWith(
+                                    color: p.hasBrokerage ? AppColors.primary : AppColors.textSecondary,
+                                    fontWeight: p.hasBrokerage ? FontWeight.w600 : FontWeight.normal,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                     Text(
                       CalculationEngine.formatCurrency(p.allocatedCost),
                       style: AppTypography.amountMedium,
@@ -1106,15 +1171,14 @@ class _PlotsTab extends ConsumerWidget {
                       children: [
                         IconButton(
                           icon: const Icon(
-                            Icons.add_card_outlined,
+                            Icons.handshake_outlined,
                             size: 16,
                             color: AppColors.accent,
                           ),
-                          tooltip: 'Add Plot Expense',
-                          onPressed: () => ExpenseFormDialog.show(
+                          tooltip: 'Add Brokerage Charge',
+                          onPressed: () => AddBrokerageDialog.show(
                             context,
-                            preselectedProjectId: projectId,
-                            preselectedPlotNumber: p.plotNumber,
+                            p,
                           ),
                         ),
                         IconButton(
@@ -1398,14 +1462,17 @@ class _InvestorsTab extends ConsumerWidget {
   const _InvestorsTab({required this.project, required this.isAdmin});
 
   double _getInvestorTotalWithdrawal(
-    String projectInvestorId,
+    List<String> projectInvestorIds,
+    String investorId,
     List<dynamic> logs,
   ) {
     double total = 0.0;
+    final idsSet = projectInvestorIds.toSet();
     for (final log in logs) {
       if (log.action == 'DISBURSE_INVESTOR_PAYOUT' &&
-          (log.entityId == projectInvestorId ||
-              log.details.contains(projectInvestorId))) {
+          (idsSet.contains(log.entityId) ||
+              idsSet.any((id) => log.details.contains(id)) ||
+              log.details.contains(investorId))) {
         final match = RegExp(r'₹([0-9.,]+)').firstMatch(log.details);
         if (match != null) {
           final amtStr = match.group(1)!.replaceAll(',', '');
@@ -1418,11 +1485,11 @@ class _InvestorsTab extends ConsumerWidget {
 
   void _showAddWithdrawalDialog(
     BuildContext context,
-    List<ProjectInvestorModel> investors,
+    List<AggregatedProjectInvestorModel> aggregatedInvestors,
     List<dynamic> logs,
     double netProfitPool,
   ) {
-    if (investors.isEmpty) {
+    if (aggregatedInvestors.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -1433,15 +1500,19 @@ class _InvestorsTab extends ConsumerWidget {
       return;
     }
 
-    final resolvedPayouts = investors.map((inv) {
-      final totalWithdrawn = _getInvestorTotalWithdrawal(inv.id, logs);
+    final resolvedPayouts = aggregatedInvestors.map((agg) {
+      final totalWithdrawn = _getInvestorTotalWithdrawal(
+        agg.contributions.map((c) => c.id).toList(),
+        agg.investorId,
+        logs,
+      );
       return InvestorPayoutModel(
-        id: inv.id,
-        investorId: inv.investorId,
-        investorName: inv.investorName,
+        id: agg.primaryId,
+        investorId: agg.investorId,
+        investorName: agg.investorName,
         projectId: project.id,
-        capitalInvested: inv.investedAmount,
-        ownershipPercent: inv.ownershipPercent,
+        capitalInvested: agg.totalInvestedAmount,
+        ownershipPercent: agg.totalOwnershipPercent,
         distributableProfitPool: netProfitPool > 0 ? netProfitPool : 0.0,
         payoutsDisbursed: totalWithdrawn,
       );
@@ -1519,7 +1590,14 @@ class _InvestorsTab extends ConsumerWidget {
                 OutlinedButton.icon(
                   onPressed: () {
                     final investors = investorsAsync.value ?? [];
-                    _showAddWithdrawalDialog(context, investors, allLogs, netProfitPool);
+                    final aggregated =
+                        AggregatedProjectInvestorModel.aggregateList(investors);
+                    _showAddWithdrawalDialog(
+                      context,
+                      aggregated,
+                      allLogs,
+                      netProfitPool,
+                    );
                   },
                   icon: const Icon(
                     Icons.account_balance_wallet_outlined,
@@ -1550,6 +1628,8 @@ class _InvestorsTab extends ConsumerWidget {
             data: (investors) {
               final investorsList =
                   ref.watch(investorsListStreamProvider).value ?? [];
+              final aggregatedInvestors =
+                  AggregatedProjectInvestorModel.aggregateList(investors);
 
               return CustomDataTable(
                 columns: const [
@@ -1561,39 +1641,58 @@ class _InvestorsTab extends ConsumerWidget {
                   DataTableColumn(label: 'Remaining Balance', width: 160),
                   DataTableColumn(label: 'Withdrawal', width: 150),
                   DataTableColumn(
-                    label: 'Agreement PDF',
+                    label: 'Actions',
                     width: 150,
                     alignment: Alignment.center,
                   ),
                 ],
-                rows: investors.map((inv) {
+                rows: aggregatedInvestors.map((agg) {
                   final fullInvestor = investorsList
-                      .where((i) => i.id == inv.investorId)
+                      .where((i) => i.id == agg.investorId)
                       .firstOrNull;
-                  final double withdrawalAmt =
-                      _getInvestorTotalWithdrawal(inv.id, allLogs);
+                  final double withdrawalAmt = _getInvestorTotalWithdrawal(
+                    agg.contributions.map((c) => c.id).toList(),
+                    agg.investorId,
+                    allLogs,
+                  );
                   final double investorProfit =
                       CalculationEngine.calculateInvestorProfitShare(
                     distributableProfit: netProfitPool,
-                    ownershipPercent: inv.ownershipPercent,
+                    ownershipPercent: agg.totalOwnershipPercent,
                   );
-                  final double totalAmount = inv.investedAmount + investorProfit;
+                  final double totalAmount =
+                      agg.totalInvestedAmount + investorProfit;
                   final double remainingBalance =
                       (totalAmount - withdrawalAmt).clamp(0.0, double.infinity);
 
                   return [
                     Text(
-                      inv.investorName,
+                      agg.investorName,
                       style: AppTypography.tableCell.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      CalculationEngine.formatCurrency(inv.investedAmount),
-                      style: AppTypography.amountMedium,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          CalculationEngine.formatCurrency(agg.totalInvestedAmount),
+                          style: AppTypography.amountMedium,
+                        ),
+                        if (agg.contributions.length > 1)
+                          Text(
+                            '(${agg.contributions.length} investments)',
+                            style: AppTypography.secondary.copyWith(
+                              fontSize: 11,
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
                     ),
                     Text(
-                      '${inv.ownershipPercent.toStringAsFixed(2)}%',
+                      '${agg.totalOwnershipPercent.toStringAsFixed(2)}%',
                       style: AppTypography.tableCell.copyWith(
                         color: AppColors.successText,
                         fontWeight: FontWeight.w600,
@@ -1633,7 +1732,7 @@ class _InvestorsTab extends ConsumerWidget {
                       onTap: () {
                         InvestorWithdrawalHistoryDialog.show(
                           context,
-                          projectInvestor: inv,
+                          projectInvestor: agg.toPrimaryProjectInvestor(),
                           projectName: project.name,
                           projectCode: project.code,
                         );
@@ -1641,7 +1740,7 @@ class _InvestorsTab extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(4),
                       child: Tooltip(
                         message:
-                            'Click to view withdrawal history for ${inv.investorName}',
+                            'Click to view withdrawal & contribution history for ${agg.investorName}',
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1660,7 +1759,7 @@ class _InvestorsTab extends ConsumerWidget {
                               Icons.history,
                               size: 14,
                               color: withdrawalAmt > 0
-                                  ? AppColors.warningText
+                                    ? AppColors.warningText
                                   : AppColors.textSecondary,
                             ),
                           ],
@@ -1677,11 +1776,11 @@ class _InvestorsTab extends ConsumerWidget {
                             color: AppColors.accent,
                             size: 18,
                           ),
-                          tooltip: 'Withdrawal History (${inv.investorName})',
+                          tooltip: 'Withdrawal & Contribute History (${agg.investorName})',
                           onPressed: () {
                             InvestorWithdrawalHistoryDialog.show(
                               context,
-                              projectInvestor: inv,
+                              projectInvestor: agg.toPrimaryProjectInvestor(),
                               projectName: project.name,
                               projectCode: project.code,
                             );
@@ -1697,7 +1796,7 @@ class _InvestorsTab extends ConsumerWidget {
                           onPressed: () {
                             InvestorAgreementPdfDialog.show(
                               context,
-                              investorName: inv.investorName,
+                              investorName: agg.investorName,
                               investorPhone: fullInvestor?.phone ?? '—',
                               investorPan: fullInvestor?.pan,
                               investorEmail: fullInvestor?.email,
@@ -1705,10 +1804,10 @@ class _InvestorsTab extends ConsumerWidget {
                               projectCode: project.code,
                               projectLocation: project.location,
                               projectLandAreaSqFt: project.landAreaSqFt,
-                              investedAmount: inv.investedAmount,
-                              ownershipPercent: inv.ownershipPercent,
-                              ownershipMethod: inv.ownershipMethod,
-                              agreementDate: inv.createdAt,
+                              investedAmount: agg.totalInvestedAmount,
+                              ownershipPercent: agg.totalOwnershipPercent,
+                              ownershipMethod: agg.contributions.first.ownershipMethod,
+                              agreementDate: agg.firstInvestmentDate,
                             );
                           },
                         ),
@@ -1996,6 +2095,23 @@ class _ExpensesTab extends ConsumerWidget {
             Text(
               'Project Expense Ledger & Cost Records',
               style: AppTypography.sectionTitle,
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Project Expense'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              onPressed: () => ExpenseFormDialog.show(
+                context,
+                preselectedProjectId: projectId,
+              ),
             ),
           ],
         ),

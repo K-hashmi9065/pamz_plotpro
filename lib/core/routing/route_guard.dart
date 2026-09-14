@@ -14,13 +14,13 @@ abstract class RouteGuard {
   /// For members, strictly restricts access to their designated member dashboard.
   static bool isAllowed(UserRole role, String path,
       [MemberType? memberType]) {
-    // Admin is allowed everywhere except member-specific personal routes
-    if (role.isAdmin) {
+    // Admin and CA (Chartered Accountant) have access to admin dashboard and management routes
+    if (role.isAdmin || memberType == MemberType.ca) {
       final isMemberOnly = _memberOnlyRoutes.any((r) => path.startsWith(r));
       return !isMemberOnly;
     }
 
-    // Members cannot access admin routes (including /dashboard)
+    // Standard client/partner members (Buyer, Investor, Landowner) are restricted to their personal dashboards
     if (role.isMember) {
       if (memberType == null) return false;
       switch (memberType) {
@@ -30,6 +30,9 @@ abstract class RouteGuard {
           return path == AppRoutes.memberDashboardInvestor || path == AppRoutes.helpGuide;
         case MemberType.landowner:
           return path == AppRoutes.memberDashboardLandowner || path == AppRoutes.helpGuide;
+        case MemberType.ca:
+          final isMemberOnly = _memberOnlyRoutes.any((r) => path.startsWith(r));
+          return !isMemberOnly;
       }
     }
 

@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/database/database_provider.dart';
 import '../../../../core/services/pdf/customer_invoice_pdf_service.dart';
+import '../../../../core/storage/hive_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/calculation_engine.dart';
@@ -13,7 +15,7 @@ import '../../../plots/domain/plot_model.dart';
 import '../../domain/buyer_model.dart';
 import '../../domain/sale_model.dart';
 
-class CustomerInvoicePdfDialog extends StatefulWidget {
+class CustomerInvoicePdfDialog extends ConsumerStatefulWidget {
   final SaleModel sale;
   final BuyerModel? buyer;
   final String projectName;
@@ -75,11 +77,12 @@ class CustomerInvoicePdfDialog extends StatefulWidget {
   }
 
   @override
-  State<CustomerInvoicePdfDialog> createState() =>
+  ConsumerState<CustomerInvoicePdfDialog> createState() =>
       _CustomerInvoicePdfDialogState();
 }
 
-class _CustomerInvoicePdfDialogState extends State<CustomerInvoicePdfDialog> {
+class _CustomerInvoicePdfDialogState
+    extends ConsumerState<CustomerInvoicePdfDialog> {
   final ValueNotifier<Uint8List?> _pdfBytesNotifier =
       ValueNotifier<Uint8List?>(null);
   final ValueNotifier<bool> _isGeneratingNotifier = ValueNotifier<bool>(true);
@@ -100,7 +103,7 @@ class _CustomerInvoicePdfDialogState extends State<CustomerInvoicePdfDialog> {
   Future<void> _generatePdf() async {
     BuyerModel? buyer = widget.buyer;
     if (buyer == null || buyer.phone.isEmpty) {
-      final db = AppDatabase();
+      final db = ref.read(appDatabaseProvider);
       final bRow = await (db.select(db.buyers)..where((b) => b.id.equals(widget.sale.buyerId))).getSingleOrNull();
       if (bRow != null) {
         buyer = BuyerModel(
@@ -179,9 +182,10 @@ class _CustomerInvoicePdfDialogState extends State<CustomerInvoicePdfDialog> {
     final plotNumbers = widget.plots.isNotEmpty
         ? widget.plots.map((p) => p.plotNumber).join(', ')
         : 'Whole Land Unit';
+    final brandingTitle = HiveService.getPdfHeaderTitle();
 
     final message = '''
-🧾 *PAMZ PlotPro - SALES & PAYMENT INVOICE*
+🧾 *$brandingTitle - SALES & PAYMENT INVOICE*
 ---------------------------------------
 👤 *Customer:* ${widget.sale.buyerName}
 📞 *Phone:* $phone
@@ -192,7 +196,7 @@ class _CustomerInvoicePdfDialogState extends State<CustomerInvoicePdfDialog> {
 ⚠️ *Remaining Dues:* ${CalculationEngine.formatCurrency(dues)}
 📊 *Total Payments Logged:* ${widget.transactions.length}
 
-_Generated via ${AppConstants.appName}_
+_Generated via ${brandingTitle}_
 '''.trim();
 
     String cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
